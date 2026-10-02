@@ -19,6 +19,7 @@ function convertLocation(db: DBLocation): Location {
     nameEn: db.name_en,
     nameBn: db.name_bn || db.name_en,
     aliases: db.aliases || [],
+    googleMapsUrl: db.google_maps_url || undefined,
   };
 }
 
@@ -30,6 +31,12 @@ function convertBus(db: DBBus): Bus {
     type: db.type || undefined,
     operatingHours: db.operating_hours || undefined,
     notes: db.notes || undefined,
+    imageUrl: db.image_url || undefined,
+    description: db.description || undefined,
+    serviceType: db.service_type || undefined,
+    conditionStatus: db.condition_status || undefined,
+    starRating: db.star_rating || undefined,
+    totalReviews: db.total_reviews || undefined,
     isActive: db.is_active,
     routes: (db.routes || []).map((route: DBBusRoute) => ({
       id: route.id,

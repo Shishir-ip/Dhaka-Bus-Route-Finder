@@ -14,6 +14,7 @@ export default function Navbar() {
     { path: '/', label: t('nav.home') },
     { path: '/buses', label: t('nav.allBuses') },
     { path: '/locations', label: t('nav.locations') },
+    { path: '/feedback', label: language === 'bn' ? 'ফিডব্যাক' : 'Feedback' },
     { path: '/about', label: t('nav.about') },
   ];
 
