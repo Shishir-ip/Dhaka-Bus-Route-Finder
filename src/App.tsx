@@ -10,6 +10,7 @@ import LocationsPage from './pages/LocationsPage';
 import LocationDetailPage from './pages/LocationDetailPage';
 import AboutPage from './pages/AboutPage';
 import AdminPage from './pages/AdminPage';
+import FeedbackPage from './pages/FeedbackPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -27,10 +28,10 @@ export default function App() {
                   <Route path="/bus/:slug" element={<BusDetailPage />} />
                   <Route path="/locations" element={<LocationsPage />} />
                   <Route path="/location/:slug" element={<LocationDetailPage />} />
-                  <Route path="/about" element={<AboutPage />} />
-                  <Route path="/admin" element={<AdminPage />} />
-                  <Route path="*" element={<NotFoundPage />} />
-                </Routes>
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/feedback" element={<FeedbackPage />} />
+                <Route path="*" element={<NotFoundPage />} />                </Routes>
               </main>
               <Footer />
             </div>

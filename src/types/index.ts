@@ -3,6 +3,7 @@ export interface Location {
   nameEn: string;
   nameBn: string;
   aliases: string[];
+  googleMapsUrl?: string;
 }
 
 export interface BusRoute {
@@ -24,6 +25,12 @@ export interface Bus {
   type?: string;
   operatingHours?: string;
   notes?: string;
+  imageUrl?: string;
+  description?: string;
+  serviceType?: string;
+  conditionStatus?: string;
+  starRating?: number;
+  totalReviews?: number;
   routes: BusRoute[];
   isActive: boolean;
 }

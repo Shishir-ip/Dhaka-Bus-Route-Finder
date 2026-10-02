@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { Bus as BusIcon, MapPin, Clock, Tag, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Bus as BusIcon, MapPin, Clock, Tag, ArrowLeft, ArrowRight, Star, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import RouteTimeline from '../components/RouteTimeline';
@@ -36,37 +36,115 @@ export default function BusDetailPage() {
         {t('bus.allBuses')}
       </Link>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 mb-6">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
-            <BusIcon size={28} className="text-emerald-600 dark:text-emerald-400" />
+      {/* Bus Header */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        {/* Bus Image */}
+        {bus.imageUrl && (
+          <div className="relative h-48 sm:h-64 bg-gray-100 dark:bg-gray-700">
+            <img
+              src={bus.imageUrl}
+              alt={language === 'bn' ? bus.nameBn : bus.nameEn}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
           </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-              {language === 'bn' ? bus.nameBn : bus.nameEn}
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">
-              {language === 'bn' ? bus.nameEn : bus.nameBn}
-            </p>
-          </div>
-        </div>
+        )}
 
-        <div className="flex flex-wrap gap-4 mt-6">
-          {bus.type && (
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <Tag size={16} />
-              <span>{t('bus.type')}: {bus.type}</span>
+        <div className="p-6 sm:p-8">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+              <BusIcon size={28} className="text-emerald-600 dark:text-emerald-400" />
             </div>
-          )}
-          {bus.operatingHours && (
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <Clock size={16} />
-              <span>{t('bus.hours')}: {bus.operatingHours}</span>
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                {language === 'bn' ? bus.nameBn : bus.nameEn}
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 mt-1">
+                {language === 'bn' ? bus.nameEn : bus.nameBn}
+              </p>
+
+              {/* Star Rating */}
+              {bus.starRating && bus.starRating > 0 && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={16}
+                        className={star <= Math.round(bus.starRating!) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {bus.starRating.toFixed(1)} ({bus.totalReviews || 0} {language === 'bn' ? 'টি রিভিউ' : 'reviews'})
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bus Details Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
+            {bus.type && (
+              <div className="flex items-center gap-2 text-sm">
+                <Tag size={16} className="text-gray-400" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('bus.type')}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{bus.type}</p>
+                </div>
+              </div>
+            )}
+            {bus.serviceType && (
+              <div className="flex items-center gap-2 text-sm">
+                <BusIcon size={16} className="text-gray-400" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {language === 'bn' ? 'সেবার ধরন' : 'Service Type'}
+                  </p>
+                  <p className="font-medium text-gray-900 dark:text-white">{bus.serviceType}</p>
+                </div>
+              </div>
+            )}
+            {bus.operatingHours && (
+              <div className="flex items-center gap-2 text-sm">
+                <Clock size={16} className="text-gray-400" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('bus.hours')}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{bus.operatingHours}</p>
+                </div>
+              </div>
+            )}
+            {bus.conditionStatus && (
+              <div className="flex items-center gap-2 text-sm">
+                <div className={`w-2 h-2 rounded-full ${
+                  bus.conditionStatus === 'Good' ? 'bg-emerald-500' :
+                  bus.conditionStatus === 'Not Bad' ? 'bg-amber-500' :
+                  'bg-red-500'
+                }`} />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {language === 'bn' ? 'অবস্থা' : 'Condition'}
+                  </p>
+                  <p className="font-medium text-gray-900 dark:text-white">{bus.conditionStatus}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Description */}
+          {bus.description && (
+            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                {bus.description}
+              </p>
             </div>
           )}
         </div>
       </div>
 
+      {/* Routes */}
       {bus.routes.map((route, routeIdx) => {
         const stops = route.stops.map(s => s.locationId);
         const firstStop = getLocationById(stops[0]);
@@ -94,6 +172,18 @@ export default function BusDetailPage() {
           </div>
         );
       })}
+
+      {/* Notes */}
+      {bus.notes && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+          <h3 className="font-semibold text-amber-800 dark:text-amber-300 mb-2">
+            {language === 'bn' ? 'বিশেষ নোট' : 'Special Notes'}
+          </h3>
+          <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">
+            {bus.notes}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

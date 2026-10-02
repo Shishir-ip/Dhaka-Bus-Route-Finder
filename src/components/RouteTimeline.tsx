@@ -1,5 +1,6 @@
 import { useLanguage } from '../contexts/LanguageContext';
 import { useData } from '../contexts/DataContext';
+import { ExternalLink } from 'lucide-react';
 
 interface Props {
   stops: string[];
@@ -16,6 +17,11 @@ export default function RouteTimeline({ stops, boardStop, alightStop, transferSt
   const getStopName = (id: string) => {
     const loc = getLocationById(id);
     return loc ? (language === 'bn' ? loc.nameBn : loc.nameEn) : id;
+  };
+
+  const getGoogleMapsUrl = (id: string) => {
+    const loc = getLocationById(id);
+    return loc?.googleMapsUrl;
   };
 
   const getStopType = (id: string) => {
@@ -55,14 +61,27 @@ export default function RouteTimeline({ stops, boardStop, alightStop, transferSt
 
             {/* Stop name */}
             <div className={`pb-2 ${isLast ? 'pb-0' : ''}`}>
-              <span className={`text-sm ${
-                type === 'board' ? 'font-semibold text-emerald-700 dark:text-emerald-300' :
-                type === 'alight' ? 'font-semibold text-blue-700 dark:text-blue-300' :
-                type === 'transfer' ? 'font-semibold text-amber-700 dark:text-amber-300' :
-                'text-gray-600 dark:text-gray-400'
-              }`}>
-                {getStopName(stopId)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm ${
+                  type === 'board' ? 'font-semibold text-emerald-700 dark:text-emerald-300' :
+                  type === 'alight' ? 'font-semibold text-blue-700 dark:text-blue-300' :
+                  type === 'transfer' ? 'font-semibold text-amber-700 dark:text-amber-300' :
+                  'text-gray-600 dark:text-gray-400'
+                }`}>
+                  {getStopName(stopId)}
+                </span>
+                {getGoogleMapsUrl(stopId) && (
+                  <a
+                    href={getGoogleMapsUrl(stopId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                    title={language === 'bn' ? 'গুগল ম্যাপে দেখুন' : 'View on Google Maps'}
+                  >
+                    <ExternalLink size={12} />
+                  </a>
+                )}
+              </div>
               {type === 'board' && (
                 <span className="ml-2 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded">
                   {language === 'bn' ? 'উঠুন' : 'Board'}
