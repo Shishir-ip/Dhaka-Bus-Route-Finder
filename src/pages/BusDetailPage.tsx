@@ -1,13 +1,19 @@
 import { useParams, Link } from 'react-router-dom';
 import { Bus as BusIcon, MapPin, Clock, Tag, ArrowLeft, ArrowRight } from 'lucide-react';
-import { getBusBySlug, getLocationById } from '../data/store';
+import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import RouteTimeline from '../components/RouteTimeline';
+import ConnectionError from '../components/ConnectionError';
 
 export default function BusDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { language, t } = useLanguage();
+  const { getBusBySlug, getLocationById, loading, error, configError } = useData();
   const bus = slug ? getBusBySlug(slug) : undefined;
+
+  if (loading || error || configError) {
+    return <ConnectionError />;
+  }
 
   if (!bus) {
     return (
@@ -25,13 +31,11 @@ export default function BusDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      {/* Back link */}
       <Link to="/buses" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 mb-6 transition-colors">
         <ArrowLeft size={16} />
         {t('bus.allBuses')}
       </Link>
 
-      {/* Bus Header */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 mb-6">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
@@ -47,7 +51,6 @@ export default function BusDetailPage() {
           </div>
         </div>
 
-        {/* Meta */}
         <div className="flex flex-wrap gap-4 mt-6">
           {bus.type && (
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -64,7 +67,6 @@ export default function BusDetailPage() {
         </div>
       </div>
 
-      {/* Routes */}
       {bus.routes.map((route, routeIdx) => {
         const stops = route.stops.map(s => s.locationId);
         const firstStop = getLocationById(stops[0]);

@@ -23,6 +23,7 @@ export interface Bus {
   nameBn: string;
   type?: string;
   operatingHours?: string;
+  notes?: string;
   routes: BusRoute[];
   isActive: boolean;
 }

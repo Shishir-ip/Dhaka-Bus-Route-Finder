@@ -1,12 +1,18 @@
 import { useParams, Link } from 'react-router-dom';
 import { MapPin, Bus as BusIcon, ArrowLeft, ArrowRight } from 'lucide-react';
-import { getLocationBySlug, getBusesForLocation, getBusRouteSlug, getLocationById } from '../data/store';
+import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import ConnectionError from '../components/ConnectionError';
 
 export default function LocationDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { language, t } = useLanguage();
+  const { getLocationBySlug, getBusesForLocation, getBusRouteSlug, getLocationById, loading, error, configError } = useData();
   const location = slug ? getLocationBySlug(slug) : undefined;
+
+  if (loading || error || configError) {
+    return <ConnectionError />;
+  }
 
   if (!location) {
     return (
@@ -26,13 +32,11 @@ export default function LocationDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      {/* Back link */}
       <Link to="/locations" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 mb-6 transition-colors">
         <ArrowLeft size={16} />
         {t('locations.allLocations')}
       </Link>
 
-      {/* Location Header */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 mb-6">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
@@ -52,7 +56,6 @@ export default function LocationDetailPage() {
         </div>
       </div>
 
-      {/* Buses at this location */}
       <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
         {t('bus.busesAt')} {language === 'bn' ? location.nameBn : location.nameEn}
       </h2>

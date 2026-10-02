@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { DataProvider } from './contexts/DataContext';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import BusesPage from './pages/BusesPage';
@@ -15,24 +16,26 @@ export default function App() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <BrowserRouter>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
-            <Navbar />
-            <main>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/buses" element={<BusesPage />} />
-                <Route path="/bus/:slug" element={<BusDetailPage />} />
-                <Route path="/locations" element={<LocationsPage />} />
-                <Route path="/location/:slug" element={<LocationDetailPage />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </BrowserRouter>
+        <DataProvider>
+          <BrowserRouter>
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
+              <Navbar />
+              <main>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/buses" element={<BusesPage />} />
+                  <Route path="/bus/:slug" element={<BusDetailPage />} />
+                  <Route path="/locations" element={<LocationsPage />} />
+                  <Route path="/location/:slug" element={<LocationDetailPage />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
+          </BrowserRouter>
+        </DataProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

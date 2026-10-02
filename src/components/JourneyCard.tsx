@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bus as BusIcon, ArrowRight, ChevronDown, ChevronUp, MapPin } from 'lucide-react';
 import { JourneyResult } from '../types';
-import { getLocationById, getBusRouteSlug, getLocationSlug } from '../data/store';
+import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import RouteTimeline from './RouteTimeline';
 
@@ -14,6 +14,7 @@ interface Props {
 export default function JourneyCard({ result, index }: Props) {
   const [expanded, setExpanded] = useState(false);
   const { language, t } = useLanguage();
+  const { getLocationById, getBusRouteSlug } = useData();
 
   const getStopName = (id: string) => {
     const loc = getLocationById(id);
@@ -24,11 +25,9 @@ export default function JourneyCard({ result, index }: Props) {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
-      {/* Header */}
       <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            {/* Badge */}
             <div className="flex items-center gap-2 mb-2">
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                 isDirect
@@ -39,7 +38,6 @@ export default function JourneyCard({ result, index }: Props) {
               </span>
             </div>
 
-            {/* Bus names */}
             {result.segments.map((segment, idx) => (
               <div key={idx}>
                 <div className="flex items-center gap-2">
@@ -69,7 +67,6 @@ export default function JourneyCard({ result, index }: Props) {
             ))}
           </div>
 
-          {/* Stats */}
           <div className="text-right shrink-0">
             <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
               {result.totalStops} {t('results.stops')}
@@ -77,7 +74,6 @@ export default function JourneyCard({ result, index }: Props) {
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-2 mt-4">
           <button
             onClick={() => setExpanded(!expanded)}
@@ -98,7 +94,6 @@ export default function JourneyCard({ result, index }: Props) {
         </div>
       </div>
 
-      {/* Expanded Route */}
       {expanded && (
         <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100 dark:border-gray-700 pt-4">
           {result.segments.map((segment, idx) => (

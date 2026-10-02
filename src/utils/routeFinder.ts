@@ -1,16 +1,20 @@
-import { Bus, JourneyResult, JourneySegment } from '../types';
-import { buses, getLocationById } from '../data/store';
+import { Bus, JourneyResult, JourneySegment, Location } from '../types';
 
-export function findRoutes(fromId: string, toId: string): JourneyResult[] {
+export function findRoutes(
+  fromId: string,
+  toId: string,
+  buses: Bus[],
+  getLocationById: (id: string) => Location | undefined
+): JourneyResult[] {
   const results: JourneyResult[] = [];
 
   // Find direct buses
-  const directResults = findDirectBuses(fromId, toId);
+  const directResults = findDirectBuses(fromId, toId, buses);
   results.push(...directResults);
 
   // Find transfer buses (max 1 transfer)
   if (directResults.length === 0) {
-    const transferResults = findTransferBuses(fromId, toId);
+    const transferResults = findTransferBuses(fromId, toId, buses);
     results.push(...transferResults);
   }
 
@@ -24,7 +28,7 @@ export function findRoutes(fromId: string, toId: string): JourneyResult[] {
   return results;
 }
 
-function findDirectBuses(fromId: string, toId: string): JourneyResult[] {
+function findDirectBuses(fromId: string, toId: string, buses: Bus[]): JourneyResult[] {
   const results: JourneyResult[] = [];
   const activeBuses = buses.filter(b => b.isActive);
 
@@ -74,7 +78,7 @@ function findDirectBuses(fromId: string, toId: string): JourneyResult[] {
   return results;
 }
 
-function findTransferBuses(fromId: string, toId: string, maxTransfers: number = 1): JourneyResult[] {
+function findTransferBuses(fromId: string, toId: string, buses: Bus[], maxTransfers: number = 1): JourneyResult[] {
   const results: JourneyResult[] = [];
   const activeBuses = buses.filter(b => b.isActive);
 
@@ -82,7 +86,8 @@ function findTransferBuses(fromId: string, toId: string, maxTransfers: number = 
   const fromBuses = new Map<string, { bus: Bus; routeIndex: number }[]>();
 
   for (const bus of activeBuses) {
-    for (const route of bus.routes) {
+    for (let routeIdx = 0; routeIdx < bus.routes.length; routeIdx++) {
+      const route = bus.routes[routeIdx];
       const stops = route.stops.map(s => s.locationId);
       const fromIndex = stops.indexOf(fromId);
       if (fromIndex === -1) continue;
@@ -97,7 +102,7 @@ function findTransferBuses(fromId: string, toId: string, maxTransfers: number = 
         if (canReach) {
           const stopId = stops[i];
           if (!fromBuses.has(stopId)) fromBuses.set(stopId, []);
-          fromBuses.get(stopId)!.push({ bus, routeIndex: i });
+          fromBuses.get(stopId)!.push({ bus, routeIndex: routeIdx });
         }
       }
     }
@@ -159,7 +164,6 @@ function findTransferBuses(fromId: string, toId: string, maxTransfers: number = 
           const totalStops = seg1Stops.length - 1 + seg2Stops.length - 1;
 
           // Avoid duplicates
-          const key = `${fromOption.bus.id}-${bus.id}-${transferStopId}`;
           const exists = results.some(r =>
             r.segments.length === 2 &&
             r.segments[0].bus.id === fromOption.bus.id &&
@@ -183,10 +187,4 @@ function findTransferBuses(fromId: string, toId: string, maxTransfers: number = 
   // Sort by total stops and limit
   results.sort((a, b) => a.totalStops - b.totalStops);
   return results.slice(0, 5);
-}
-
-export function getStopName(stopId: string, lang: 'en' | 'bn' = 'en'): string {
-  const loc = getLocationById(stopId);
-  if (!loc) return stopId;
-  return lang === 'bn' ? loc.nameBn : loc.nameEn;
 }

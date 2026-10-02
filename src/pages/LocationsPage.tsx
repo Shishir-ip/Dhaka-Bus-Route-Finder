@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, MapPin } from 'lucide-react';
-import { locations, getLocationSlug, getBusesForLocation } from '../data/store';
+import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import ConnectionError from '../components/ConnectionError';
 
 export default function LocationsPage() {
   const [query, setQuery] = useState('');
   const { language, t } = useLanguage();
+  const { locations, loading, error, configError, getLocationSlug, getBusesForLocation } = useData();
 
   const filteredLocations = useMemo(() => {
     if (!query.trim()) return locations;
@@ -19,7 +21,11 @@ export default function LocationsPage() {
       if (loc.aliases.some(a => a.toLowerCase().includes(q))) return true;
       return false;
     });
-  }, [query, language]);
+  }, [query, language, locations]);
+
+  if (loading || error || configError) {
+    return <ConnectionError />;
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -32,7 +38,6 @@ export default function LocationsPage() {
         </p>
       </div>
 
-      {/* Search */}
       <div className="relative mb-6">
         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
@@ -44,7 +49,6 @@ export default function LocationsPage() {
         />
       </div>
 
-      {/* Location Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {filteredLocations.map(loc => {
           const busCount = getBusesForLocation(loc.id).length;
