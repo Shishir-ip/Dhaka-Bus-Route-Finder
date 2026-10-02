@@ -88,7 +88,7 @@ export default function HomePage() {
 
           {/* Search Box */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-5 sm:p-6 max-w-2xl mx-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-3 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-3 items-start">
               <LocationAutocomplete
                 label={t('search.from')}
                 value={from}
@@ -96,7 +96,7 @@ export default function HomePage() {
               />
               <button
                 onClick={handleSwap}
-                className="hidden sm:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all mx-auto mb-1"
+                className="hidden sm:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all mx-auto mt-6"
                 aria-label={t('search.swap')}
               >
                 <ArrowRightLeft size={18} />
@@ -111,7 +111,7 @@ export default function HomePage() {
             <div className="sm:hidden flex justify-center my-2">
               <button
                 onClick={handleSwap}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm font-medium min-h-[40px]"
               >
                 <ArrowRightLeft size={14} />
                 {t('search.swap')}
@@ -135,11 +135,11 @@ export default function HomePage() {
           {/* Popular Routes */}
           {popularRoutes.length > 0 && (
             <div className="mt-8 max-w-2xl mx-auto">
-              <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-3">
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
                 <TrendingUp size={14} />
                 <span>{language === 'bn' ? 'জনপ্রিয় রুট' : 'Popular Routes'}</span>
               </div>
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="flex flex-wrap justify-center gap-3">
                 {popularRoutes.map((route, idx) => {
                   const fromLoc = locations.find(l => l.id === route.from);
                   const toLoc = locations.find(l => l.id === route.to);
@@ -148,7 +148,7 @@ export default function HomePage() {
                     <button
                       key={idx}
                       onClick={() => handlePopularRoute(route.from, route.to)}
-                      className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                      className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-medium text-gray-600 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all min-h-[40px]"
                     >
                       {language === 'bn'
                         ? `${fromLoc.nameBn} → ${toLoc.nameBn}`
@@ -198,8 +198,11 @@ export default function HomePage() {
       {/* Features Section (shown when no search done) */}
       {!searched && (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-6">
+            {language === 'bn' ? 'বৈশিষ্ট্যসমূহ' : 'Features'}
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 text-center">
+            <div className="text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl mb-3">
                 <Search size={20} className="text-emerald-600 dark:text-emerald-400" />
               </div>
@@ -210,7 +213,7 @@ export default function HomePage() {
                 {language === 'bn' ? 'যেকোনো দুটি স্থানের মধ্যে বাস খুঁজুন' : 'Find buses between any two locations'}
               </p>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 text-center">
+            <div className="text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl mb-3">
                 <Bus size={20} className="text-blue-600 dark:text-blue-400" />
               </div>
@@ -221,7 +224,7 @@ export default function HomePage() {
                 {language === 'bn' ? 'সরাসরি বাস না পেলে ট্রান্সফার অপশন' : 'Transfer options when no direct bus'}
               </p>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 text-center">
+            <div className="text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl mb-3">
                 <TrendingUp size={20} className="text-amber-600 dark:text-amber-400" />
               </div>
