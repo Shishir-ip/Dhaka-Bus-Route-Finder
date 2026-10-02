@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Bus as BusIcon, MapPin, ArrowRight } from 'lucide-react';
-import { buses, getBusRouteSlug, getLocationById, getLocationsForBus } from '../data/store';
+import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import ConnectionError from '../components/ConnectionError';
 
 export default function BusesPage() {
   const [query, setQuery] = useState('');
   const { language, t } = useLanguage();
+  const { buses, loading, error, configError, getLocationById, getBusRouteSlug } = useData();
 
   const filteredBuses = useMemo(() => {
     const active = buses.filter(b => b.isActive);
@@ -17,7 +19,11 @@ export default function BusesPage() {
       const altName = language === 'bn' ? bus.nameEn : bus.nameBn;
       return name.toLowerCase().includes(q) || altName.toLowerCase().includes(q);
     });
-  }, [query, language]);
+  }, [query, language, buses]);
+
+  if (loading || error || configError) {
+    return <ConnectionError />;
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -30,7 +36,6 @@ export default function BusesPage() {
         </p>
       </div>
 
-      {/* Search */}
       <div className="relative mb-6">
         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
@@ -42,15 +47,15 @@ export default function BusesPage() {
         />
       </div>
 
-      {/* Bus List */}
       <div className="grid gap-4">
         {filteredBuses.map(bus => {
-          const locations = getLocationsForBus(bus);
           const firstRoute = bus.routes[0];
           const firstStop = firstRoute?.stops[0];
           const lastStop = firstRoute?.stops[firstRoute.stops.length - 1];
           const startLoc = firstStop ? getLocationById(firstStop.locationId) : null;
           const endLoc = lastStop ? getLocationById(lastStop.locationId) : null;
+          const allStops = new Set<string>();
+          bus.routes.forEach(r => r.stops.forEach(s => allStops.add(s.locationId)));
 
           return (
             <Link
@@ -79,7 +84,7 @@ export default function BusesPage() {
                           {language === 'bn' ? endLoc.nameBn : endLoc.nameEn}
                         </>
                       ) : (
-                        `${locations.length} ${language === 'bn' ? 'টি স্টপ' : 'stops'}`
+                        `${allStops.size} ${language === 'bn' ? 'টি স্টপ' : 'stops'}`
                       )}
                     </span>
                   </div>

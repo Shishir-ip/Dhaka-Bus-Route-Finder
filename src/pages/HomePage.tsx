@@ -1,20 +1,12 @@
 import { useState } from 'react';
-import { ArrowRightLeft, Search, Bus, ArrowRight, MapPin, TrendingUp } from 'lucide-react';
+import { ArrowRightLeft, Search, Bus, TrendingUp } from 'lucide-react';
 import { Location, JourneyResult } from '../types';
 import LocationAutocomplete from '../components/LocationAutocomplete';
 import JourneyCard from '../components/JourneyCard';
+import ConnectionError from '../components/ConnectionError';
 import { findRoutes } from '../utils/routeFinder';
-import { locations, getBusRouteSlug, getLocationSlug } from '../data/store';
+import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
-
-const popularRoutes = [
-  { from: 'loc-005', to: 'loc-024', labelEn: 'Mirpur 10 → Motijheel' },
-  { from: 'loc-033', to: 'loc-024', labelEn: 'Uttara → Motijheel' },
-  { from: 'loc-049', to: 'loc-024', labelEn: 'Mohammadpur → Motijheel' },
-  { from: 'loc-005', to: 'loc-031', labelEn: 'Mirpur 10 → Gulshan' },
-  { from: 'loc-033', to: 'loc-012', labelEn: 'Uttara → Airport' },
-  { from: 'loc-001', to: 'loc-025', labelEn: 'Gabtoli → Gulistan' },
-];
 
 export default function HomePage() {
   const [from, setFrom] = useState<Location | null>(null);
@@ -23,12 +15,13 @@ export default function HomePage() {
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const { t, language } = useLanguage();
+  const { buses, locations, loading: dataLoading, error, configError, getLocationById } = useData();
 
   const handleSearch = () => {
     if (!from || !to) return;
     setLoading(true);
     setTimeout(() => {
-      const found = findRoutes(from.id, to.id);
+      const found = findRoutes(from.id, to.id, buses, getLocationById);
       setResults(found);
       setSearched(true);
       setLoading(false);
@@ -51,13 +44,28 @@ export default function HomePage() {
       setTo(toLoc);
       setLoading(true);
       setTimeout(() => {
-        const found = findRoutes(fromId, toId);
+        const found = findRoutes(fromId, toId, buses, getLocationById);
         setResults(found);
         setSearched(true);
         setLoading(false);
       }, 300);
     }
   };
+
+  // Show connection error if data not available
+  if (dataLoading || error || configError) {
+    return <ConnectionError />;
+  }
+
+  // Popular routes - use actual locations from DB
+  const popularRoutes = [
+    { from: locations.find(l => l.nameEn === 'Mirpur 10')?.id || '', to: locations.find(l => l.nameEn === 'Motijheel')?.id || '', labelEn: 'Mirpur 10 → Motijheel' },
+    { from: locations.find(l => l.nameEn === 'Uttara')?.id || '', to: locations.find(l => l.nameEn === 'Motijheel')?.id || '', labelEn: 'Uttara → Motijheel' },
+    { from: locations.find(l => l.nameEn === 'Mohammadpur')?.id || '', to: locations.find(l => l.nameEn === 'Motijheel')?.id || '', labelEn: 'Mohammadpur → Motijheel' },
+    { from: locations.find(l => l.nameEn === 'Mirpur 10')?.id || '', to: locations.find(l => l.nameEn === 'Gulshan 1')?.id || '', labelEn: 'Mirpur 10 → Gulshan' },
+    { from: locations.find(l => l.nameEn === 'Uttara')?.id || '', to: locations.find(l => l.nameEn === 'Airport')?.id || '', labelEn: 'Uttara → Airport' },
+    { from: locations.find(l => l.nameEn === 'Gabtoli')?.id || '', to: locations.find(l => l.nameEn === 'Gulistan')?.id || '', labelEn: 'Gabtoli → Gulistan' },
+  ].filter(r => r.from && r.to);
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
@@ -67,6 +75,9 @@ export default function HomePage() {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-700 dark:text-emerald-300 text-sm font-medium mb-6">
             <Bus size={16} />
             {language === 'bn' ? 'ঢাকার বাস নেটওয়ার্ক' : 'Dhaka Bus Network'}
+            <span className="ml-1 text-xs bg-emerald-200 dark:bg-emerald-800 px-1.5 py-0.5 rounded">
+              {buses.length} {language === 'bn' ? 'টি বাস' : 'buses'}
+            </span>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
             {t('app.tagline')}
@@ -83,8 +94,6 @@ export default function HomePage() {
                 value={from}
                 onChange={setFrom}
               />
-
-              {/* Swap Button */}
               <button
                 onClick={handleSwap}
                 className="hidden sm:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all mx-auto mb-1"
@@ -92,7 +101,6 @@ export default function HomePage() {
               >
                 <ArrowRightLeft size={18} />
               </button>
-
               <LocationAutocomplete
                 label={t('search.to')}
                 value={to}
@@ -100,7 +108,6 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Mobile Swap */}
             <div className="sm:hidden flex justify-center my-2">
               <button
                 onClick={handleSwap}
@@ -126,26 +133,33 @@ export default function HomePage() {
           </div>
 
           {/* Popular Routes */}
-          <div className="mt-8 max-w-2xl mx-auto">
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-3">
-              <TrendingUp size={14} />
-              <span>{language === 'bn' ? 'জনপ্রিয় রুট' : 'Popular Routes'}</span>
+          {popularRoutes.length > 0 && (
+            <div className="mt-8 max-w-2xl mx-auto">
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-3">
+                <TrendingUp size={14} />
+                <span>{language === 'bn' ? 'জনপ্রিয় রুট' : 'Popular Routes'}</span>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {popularRoutes.map((route, idx) => {
+                  const fromLoc = locations.find(l => l.id === route.from);
+                  const toLoc = locations.find(l => l.id === route.to);
+                  if (!fromLoc || !toLoc) return null;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handlePopularRoute(route.from, route.to)}
+                      className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                    >
+                      {language === 'bn'
+                        ? `${fromLoc.nameBn} → ${toLoc.nameBn}`
+                        : route.labelEn
+                      }
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              {popularRoutes.map((route, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handlePopularRoute(route.from, route.to)}
-                  className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
-                >
-                  {language === 'bn'
-                    ? `${locations.find(l => l.id === route.from)?.nameBn} → ${locations.find(l => l.id === route.to)?.nameBn}`
-                    : route.labelEn
-                  }
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -198,7 +212,7 @@ export default function HomePage() {
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl mb-3">
-                <ArrowRight size={20} className="text-blue-600 dark:text-blue-400" />
+                <Bus size={20} className="text-blue-600 dark:text-blue-400" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1">
                 {language === 'bn' ? 'ট্রান্সফার রুট' : 'Transfer Routes'}
@@ -209,7 +223,7 @@ export default function HomePage() {
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl mb-3">
-                <MapPin size={20} className="text-amber-600 dark:text-amber-400" />
+                <TrendingUp size={20} className="text-amber-600 dark:text-amber-400" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1">
                 {language === 'bn' ? 'রুট ভিজ্যুয়ালাইজেশন' : 'Route Visualization'}

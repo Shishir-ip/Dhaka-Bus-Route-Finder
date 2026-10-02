@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { Location } from '../types';
-import { searchLocations, getLocationById } from '../data/store';
+import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface Props {
@@ -19,19 +19,20 @@ export default function LocationAutocomplete({ label, value, onChange, excludeId
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { language } = useLanguage();
+  const { searchLocations } = useData();
 
   useEffect(() => {
     if (query.trim().length > 0) {
       let res = searchLocations(query, language);
       if (excludeId) res = res.filter(r => r.id !== excludeId);
-      setResults(res.slice(0, 8));
+      setResults(res);
       setIsOpen(true);
       setHighlightIndex(-1);
     } else {
       setResults([]);
       setIsOpen(false);
     }
-  }, [query, language, excludeId]);
+  }, [query, language, excludeId, searchLocations]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -103,7 +104,6 @@ export default function LocationAutocomplete({ label, value, onChange, excludeId
         )}
       </div>
 
-      {/* Dropdown */}
       {isOpen && results.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
           {results.map((loc, idx) => (

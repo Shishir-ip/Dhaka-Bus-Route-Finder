@@ -1,5 +1,5 @@
 import { useLanguage } from '../contexts/LanguageContext';
-import { getLocationById } from '../data/store';
+import { useData } from '../contexts/DataContext';
 
 interface Props {
   stops: string[];
@@ -11,6 +11,7 @@ interface Props {
 
 export default function RouteTimeline({ stops, boardStop, alightStop, transferStop, compact = false }: Props) {
   const { language } = useLanguage();
+  const { getLocationById } = useData();
 
   const getStopName = (id: string) => {
     const loc = getLocationById(id);
