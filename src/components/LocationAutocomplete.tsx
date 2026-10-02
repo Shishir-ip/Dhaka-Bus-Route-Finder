@@ -73,7 +73,7 @@ export default function LocationAutocomplete({ label, value, onChange, excludeId
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
         {label}
       </label>
       <div className="relative">
