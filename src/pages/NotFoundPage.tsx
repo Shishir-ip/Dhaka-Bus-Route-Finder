@@ -8,9 +8,15 @@ export default function NotFoundPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-6">
-          <Bus size={40} className="text-gray-400 dark:text-gray-500" />
+        {/* 404 Illustration */}
+        <div className="mb-6 flex justify-center">
+          <img 
+            src="https://image.qwenlm.ai/generated-images/d160c36c-4cd6-48a9-ab09-9d493bcfb94d/_result.png" 
+            alt="Lost bus" 
+            className="w-56 h-56 object-contain"
+          />
         </div>
+        
         <h1 className="text-6xl font-bold text-gray-200 dark:text-gray-700 mb-2">404</h1>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
           {t('error.notFound')}

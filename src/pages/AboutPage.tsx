@@ -15,6 +15,15 @@ export default function AboutPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
       <div className="text-center mb-10">
+        {/* About Page Illustration */}
+        <div className="mb-6 flex justify-center">
+          <img 
+            src="https://image.qwenlm.ai/generated-images/cfa85b09-45d0-4893-b280-3164dd67fa2a/_result.png" 
+            alt="Connected cities and transportation network" 
+            className="w-80 h-60 object-contain"
+          />
+        </div>
+        
         <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl mb-4">
           <Bus size={32} className="text-emerald-600 dark:text-emerald-400" />
         </div>
