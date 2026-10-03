@@ -189,16 +189,43 @@ export async function fetchStats() {
 export async function createBus(bus: Partial<DBBus>) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
-  const { data, error } = await client.from('buses').insert(bus).select().single();
-  if (error) throw error;
+  
+  // Only send fields that exist in the base schema
+  const baseData = {
+    name_en: bus.name_en,
+    name_bn: bus.name_bn,
+    type: bus.type,
+    operating_hours: bus.operating_hours,
+    notes: bus.notes,
+    is_active: bus.is_active,
+  };
+  
+  const { data, error } = await client.from('buses').insert(baseData).select().single();
+  if (error) {
+    console.error('Create bus error:', error);
+    throw new Error(error.message);
+  }
   return data;
 }
 
 export async function updateBus(id: string, updates: Partial<DBBus>) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
-  const { data, error } = await client.from('buses').update(updates).eq('id', id).select().single();
-  if (error) throw error;
+  
+  // Only send fields that exist in the base schema
+  const baseUpdates: any = {};
+  if (updates.name_en !== undefined) baseUpdates.name_en = updates.name_en;
+  if (updates.name_bn !== undefined) baseUpdates.name_bn = updates.name_bn;
+  if (updates.type !== undefined) baseUpdates.type = updates.type;
+  if (updates.operating_hours !== undefined) baseUpdates.operating_hours = updates.operating_hours;
+  if (updates.notes !== undefined) baseUpdates.notes = updates.notes;
+  if (updates.is_active !== undefined) baseUpdates.is_active = updates.is_active;
+  
+  const { data, error } = await client.from('buses').update(baseUpdates).eq('id', id).select().single();
+  if (error) {
+    console.error('Update bus error:', error);
+    throw new Error(error.message);
+  }
   return data;
 }
 
@@ -213,16 +240,39 @@ export async function deleteBus(id: string) {
 export async function createLocation(location: Partial<DBLocation>) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
-  const { data, error } = await client.from('locations').insert(location).select().single();
-  if (error) throw error;
+  
+  // Only send fields that exist in the base schema
+  const baseData = {
+    name_en: location.name_en,
+    name_bn: location.name_bn,
+    aliases: location.aliases,
+    is_active: location.is_active,
+  };
+  
+  const { data, error } = await client.from('locations').insert(baseData).select().single();
+  if (error) {
+    console.error('Create location error:', error);
+    throw new Error(error.message);
+  }
   return data;
 }
 
 export async function updateLocation(id: string, updates: Partial<DBLocation>) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
-  const { data, error } = await client.from('locations').update(updates).eq('id', id).select().single();
-  if (error) throw error;
+  
+  // Only send fields that exist in the base schema
+  const baseUpdates: any = {};
+  if (updates.name_en !== undefined) baseUpdates.name_en = updates.name_en;
+  if (updates.name_bn !== undefined) baseUpdates.name_bn = updates.name_bn;
+  if (updates.aliases !== undefined) baseUpdates.aliases = updates.aliases;
+  if (updates.is_active !== undefined) baseUpdates.is_active = updates.is_active;
+  
+  const { data, error } = await client.from('locations').update(baseUpdates).eq('id', id).select().single();
+  if (error) {
+    console.error('Update location error:', error);
+    throw new Error(error.message);
+  }
   return data;
 }
 
