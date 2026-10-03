@@ -190,17 +190,22 @@ export async function createBus(bus: Partial<DBBus>) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
   
-  // Only send fields that exist in the base schema
-  const baseData = {
-    name_en: bus.name_en,
-    name_bn: bus.name_bn,
-    type: bus.type,
-    operating_hours: bus.operating_hours,
-    notes: bus.notes,
-    is_active: bus.is_active,
-  };
+  // Only send fields that are defined
+  const cleanData: any = {};
+  if (bus.name_en !== undefined) cleanData.name_en = bus.name_en;
+  if (bus.name_bn !== undefined) cleanData.name_bn = bus.name_bn;
+  if (bus.type !== undefined) cleanData.type = bus.type;
+  if (bus.operating_hours !== undefined) cleanData.operating_hours = bus.operating_hours;
+  if (bus.notes !== undefined) cleanData.notes = bus.notes;
+  if (bus.is_active !== undefined) cleanData.is_active = bus.is_active;
+  if (bus.image_url !== undefined) cleanData.image_url = bus.image_url;
+  if (bus.description !== undefined) cleanData.description = bus.description;
+  if (bus.service_type !== undefined) cleanData.service_type = bus.service_type;
+  if (bus.condition_status !== undefined) cleanData.condition_status = bus.condition_status;
+  if (bus.star_rating !== undefined) cleanData.star_rating = bus.star_rating;
+  if (bus.total_reviews !== undefined) cleanData.total_reviews = bus.total_reviews;
   
-  const { data, error } = await client.from('buses').insert(baseData).select().single();
+  const { data, error } = await client.from('buses').insert(cleanData).select().single();
   if (error) {
     console.error('Create bus error:', error);
     throw new Error(error.message);
@@ -212,16 +217,22 @@ export async function updateBus(id: string, updates: Partial<DBBus>) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
   
-  // Only send fields that exist in the base schema
-  const baseUpdates: any = {};
-  if (updates.name_en !== undefined) baseUpdates.name_en = updates.name_en;
-  if (updates.name_bn !== undefined) baseUpdates.name_bn = updates.name_bn;
-  if (updates.type !== undefined) baseUpdates.type = updates.type;
-  if (updates.operating_hours !== undefined) baseUpdates.operating_hours = updates.operating_hours;
-  if (updates.notes !== undefined) baseUpdates.notes = updates.notes;
-  if (updates.is_active !== undefined) baseUpdates.is_active = updates.is_active;
+  // Only send fields that are defined (not undefined)
+  const cleanUpdates: any = {};
+  if (updates.name_en !== undefined) cleanUpdates.name_en = updates.name_en;
+  if (updates.name_bn !== undefined) cleanUpdates.name_bn = updates.name_bn;
+  if (updates.type !== undefined) cleanUpdates.type = updates.type;
+  if (updates.operating_hours !== undefined) cleanUpdates.operating_hours = updates.operating_hours;
+  if (updates.notes !== undefined) cleanUpdates.notes = updates.notes;
+  if (updates.is_active !== undefined) cleanUpdates.is_active = updates.is_active;
+  if (updates.image_url !== undefined) cleanUpdates.image_url = updates.image_url;
+  if (updates.description !== undefined) cleanUpdates.description = updates.description;
+  if (updates.service_type !== undefined) cleanUpdates.service_type = updates.service_type;
+  if (updates.condition_status !== undefined) cleanUpdates.condition_status = updates.condition_status;
+  if (updates.star_rating !== undefined) cleanUpdates.star_rating = updates.star_rating;
+  if (updates.total_reviews !== undefined) cleanUpdates.total_reviews = updates.total_reviews;
   
-  const { data, error } = await client.from('buses').update(baseUpdates).eq('id', id).select().single();
+  const { data, error } = await client.from('buses').update(cleanUpdates).eq('id', id).select().single();
   if (error) {
     console.error('Update bus error:', error);
     throw new Error(error.message);
@@ -241,15 +252,15 @@ export async function createLocation(location: Partial<DBLocation>) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
   
-  // Only send fields that exist in the base schema
-  const baseData = {
-    name_en: location.name_en,
-    name_bn: location.name_bn,
-    aliases: location.aliases,
-    is_active: location.is_active,
-  };
+  // Only send fields that are defined
+  const cleanData: any = {};
+  if (location.name_en !== undefined) cleanData.name_en = location.name_en;
+  if (location.name_bn !== undefined) cleanData.name_bn = location.name_bn;
+  if (location.aliases !== undefined) cleanData.aliases = location.aliases;
+  if (location.is_active !== undefined) cleanData.is_active = location.is_active;
+  if (location.google_maps_url !== undefined) cleanData.google_maps_url = location.google_maps_url;
   
-  const { data, error } = await client.from('locations').insert(baseData).select().single();
+  const { data, error } = await client.from('locations').insert(cleanData).select().single();
   if (error) {
     console.error('Create location error:', error);
     throw new Error(error.message);
@@ -261,14 +272,15 @@ export async function updateLocation(id: string, updates: Partial<DBLocation>) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
   
-  // Only send fields that exist in the base schema
-  const baseUpdates: any = {};
-  if (updates.name_en !== undefined) baseUpdates.name_en = updates.name_en;
-  if (updates.name_bn !== undefined) baseUpdates.name_bn = updates.name_bn;
-  if (updates.aliases !== undefined) baseUpdates.aliases = updates.aliases;
-  if (updates.is_active !== undefined) baseUpdates.is_active = updates.is_active;
+  // Only send fields that are defined
+  const cleanUpdates: any = {};
+  if (updates.name_en !== undefined) cleanUpdates.name_en = updates.name_en;
+  if (updates.name_bn !== undefined) cleanUpdates.name_bn = updates.name_bn;
+  if (updates.aliases !== undefined) cleanUpdates.aliases = updates.aliases;
+  if (updates.is_active !== undefined) cleanUpdates.is_active = updates.is_active;
+  if (updates.google_maps_url !== undefined) cleanUpdates.google_maps_url = updates.google_maps_url;
   
-  const { data, error } = await client.from('locations').update(baseUpdates).eq('id', id).select().single();
+  const { data, error } = await client.from('locations').update(cleanUpdates).eq('id', id).select().single();
   if (error) {
     console.error('Update location error:', error);
     throw new Error(error.message);

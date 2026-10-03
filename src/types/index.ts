@@ -40,6 +40,8 @@ export interface JourneyResult {
   segments: JourneySegment[];
   totalTransfers: number;
   totalStops: number;
+  category?: 'recommended' | 'direct' | 'fewer_stops' | 'alternative';
+  reason?: string;
 }
 
 export interface JourneySegment {
