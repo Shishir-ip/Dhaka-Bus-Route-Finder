@@ -20,6 +20,8 @@ export default function HomePage() {
   const handleSearch = () => {
     if (!from || !to) return;
     
+    console.log('[HomePage] Starting search:', { from: from.id, to: to.id });
+    
     // Handle same origin/destination
     if (from.id === to.id) {
       setResults([]);
@@ -28,19 +30,19 @@ export default function HomePage() {
     }
     
     setLoading(true);
-    setTimeout(() => {
-      try {
-        const found = findRoutes(from.id, to.id, buses, getLocationById);
-        setResults(found);
-        setSearched(true);
-      } catch (error) {
-        console.error('Route search failed:', error);
-        setResults([]);
-        setSearched(true);
-      } finally {
-        setLoading(false);
-      }
-    }, 100);
+    
+    try {
+      const found = findRoutes(from.id, to.id, buses, getLocationById);
+      console.log('[HomePage] Search completed, results:', found.length);
+      setResults(found);
+      setSearched(true);
+    } catch (error) {
+      console.error('[HomePage] Error during search:', error);
+      setResults([]);
+      setSearched(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSwap = () => {
@@ -55,6 +57,8 @@ export default function HomePage() {
     const fromLoc = locations.find(l => l.id === fromId);
     const toLoc = locations.find(l => l.id === toId);
     if (fromLoc && toLoc) {
+      console.log('[HomePage] Popular route search:', { fromId, toId });
+      
       setFrom(fromLoc);
       setTo(toLoc);
       
@@ -66,19 +70,19 @@ export default function HomePage() {
       }
       
       setLoading(true);
-      setTimeout(() => {
-        try {
-          const found = findRoutes(fromId, toId, buses, getLocationById);
-          setResults(found);
-          setSearched(true);
-        } catch (error) {
-          console.error('Route search failed:', error);
-          setResults([]);
-          setSearched(true);
-        } finally {
-          setLoading(false);
-        }
-      }, 100);
+      
+      try {
+        const found = findRoutes(fromId, toId, buses, getLocationById);
+        console.log('[HomePage] Popular route search completed, results:', found.length);
+        setResults(found);
+        setSearched(true);
+      } catch (error) {
+        console.error('[HomePage] Error during popular route search:', error);
+        setResults([]);
+        setSearched(true);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
