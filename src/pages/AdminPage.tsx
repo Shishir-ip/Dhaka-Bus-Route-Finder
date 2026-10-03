@@ -122,9 +122,10 @@ export default function AdminPage() {
       setEditingBus(null);
       loadAllData();
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save bus:', err);
-      alert('Failed to save bus. Check console for details.');
+      const errorMessage = err?.message || 'Unknown error occurred';
+      alert(`Failed to save bus: ${errorMessage}\n\nPlease check:\n1. You are logged in\n2. Database schema is up to date\n3. RLS policies allow updates`);
     }
   };
 
@@ -134,9 +135,9 @@ export default function AdminPage() {
       await deleteBus(id);
       loadAllData();
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to delete bus:', err);
-      alert('Failed to delete bus. Check console for details.');
+      alert(`Failed to delete bus: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -145,9 +146,9 @@ export default function AdminPage() {
       await createRoute({ bus_id: busId, direction });
       loadAllData();
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create route:', err);
-      alert('Failed to create route. Check console for details.');
+      alert(`Failed to create route: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -157,9 +158,9 @@ export default function AdminPage() {
       await deleteRoute(routeId);
       loadAllData();
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to delete route:', err);
-      alert('Failed to delete route. Check console for details.');
+      alert(`Failed to delete route: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -168,9 +169,9 @@ export default function AdminPage() {
       await addRouteStop({ route_id: routeId, location_id: locationId, stop_order: order });
       loadAllData();
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to add stop:', err);
-      alert('Failed to add stop. Check console for details.');
+      alert(`Failed to add stop: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -179,9 +180,9 @@ export default function AdminPage() {
       await deleteRouteStop(stopId);
       loadAllData();
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to delete stop:', err);
-      alert('Failed to delete stop. Check console for details.');
+      alert(`Failed to delete stop: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -190,9 +191,9 @@ export default function AdminPage() {
       await updateRouteStopOrder(routeId, stops);
       loadAllData();
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to reorder stops:', err);
-      alert('Failed to reorder stops. Check console for details.');
+      alert(`Failed to reorder stops: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -207,9 +208,10 @@ export default function AdminPage() {
       setEditingLocation(null);
       loadAllData();
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save location:', err);
-      alert('Failed to save location. Check console for details.');
+      const errorMessage = err?.message || 'Unknown error occurred';
+      alert(`Failed to save location: ${errorMessage}\n\nPlease check:\n1. You are logged in\n2. Database schema is up to date\n3. RLS policies allow updates`);
     }
   };
 
@@ -219,9 +221,9 @@ export default function AdminPage() {
       await deleteLocation(id);
       loadAllData();
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to delete location:', err);
-      alert('Failed to delete location. Check console for details.');
+      alert(`Failed to delete location: ${err?.message || 'Unknown error'}`);
     }
   };
 
