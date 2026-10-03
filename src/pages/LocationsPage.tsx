@@ -29,13 +29,25 @@ export default function LocationsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          {t('locations.allLocations')}
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          {language === 'bn' ? `${filteredLocations.length}টি স্থান` : `${filteredLocations.length} locations`}
-        </p>
+      {/* Header with subtle transportation image */}
+      <div className="relative mb-8 rounded-2xl overflow-hidden h-32 sm:h-40">
+        <img
+          src="https://image.qwenlm.ai/generated-images/a7ae6d0f-24f2-4ccc-b06a-960633583795/_result.png"
+          alt="Dhaka transportation network"
+          className="w-full h-full object-cover"
+          loading="eager"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-900/70 via-gray-900/40 to-transparent" />
+        <div className="absolute inset-0 flex items-end p-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+              {t('locations.allLocations')}
+            </h1>
+            <p className="text-white/80 text-sm">
+              {language === 'bn' ? `${filteredLocations.length}টি স্থান` : `${filteredLocations.length} locations`}
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="relative mb-6">

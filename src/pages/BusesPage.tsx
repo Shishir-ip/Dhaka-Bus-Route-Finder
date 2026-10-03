@@ -27,13 +27,25 @@ export default function BusesPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          {t('bus.allBuses')}
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          {language === 'bn' ? `${filteredBuses.length}টি বাস পাওয়া গেছে` : `${filteredBuses.length} buses found`}
-        </p>
+      {/* Header with subtle bus image */}
+      <div className="relative mb-8 rounded-2xl overflow-hidden h-40 sm:h-48">
+        <img
+          src="https://image.qwenlm.ai/generated-images/b05db81f-d9a8-4c5b-b4fc-20a315b969ba/_result.png"
+          alt="Dhaka local bus at stop"
+          className="w-full h-full object-cover"
+          loading="eager"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-900/70 via-gray-900/40 to-transparent" />
+        <div className="absolute inset-0 flex items-end p-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+              {t('bus.allBuses')}
+            </h1>
+            <p className="text-white/80 text-sm">
+              {language === 'bn' ? `${filteredBuses.length}টি বাস পাওয়া গেছে` : `${filteredBuses.length} buses found`}
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="relative mb-6">
