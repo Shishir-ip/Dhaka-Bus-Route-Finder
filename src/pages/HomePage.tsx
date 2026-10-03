@@ -104,8 +104,18 @@ export default function HomePage() {
   return (
     <div className="min-h-[calc(100vh-4rem)]">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-12 sm:py-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+      <div className="relative bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-12 sm:py-20 overflow-hidden">
+        {/* Hero Background Image */}
+        <div className="absolute inset-0 opacity-[0.07] dark:opacity-[0.03]">
+          <img 
+            src="https://image.qwenlm.ai/generated-images/544ed7c3-76c9-4461-ae7f-2e7207d1fdac/_result.png" 
+            alt="" 
+            className="w-full h-full object-cover"
+            aria-hidden="true"
+          />
+        </div>
+        
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-700 dark:text-emerald-300 text-sm font-medium mb-6">
             <Bus size={16} />
             {language === 'bn' ? 'ঢাকার বাস নেটওয়ার্ক' : 'Dhaka Bus Network'}
@@ -211,7 +221,12 @@ export default function HomePage() {
 
           {results.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-2xl">
-              <Bus size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+              <img 
+                src="https://image.qwenlm.ai/generated-images/842d7459-dce0-4c14-9e71-9d05282dfc51/_result.png" 
+                alt="" 
+                className="w-48 h-48 mx-auto mb-6 object-contain opacity-80"
+                aria-hidden="true"
+              />
               <p className="text-gray-600 dark:text-gray-400 font-medium mb-2">
                 {t('results.noResults')}
               </p>
@@ -235,6 +250,16 @@ export default function HomePage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-6">
             {language === 'bn' ? 'বৈশিষ্ট্যসমূহ' : 'Features'}
           </h2>
+          
+          {/* Features Illustration */}
+          <div className="mb-8 flex justify-center">
+            <img 
+              src="https://image.qwenlm.ai/generated-images/60256bcf-df67-4b6d-85a6-680385389eb5/_result.png" 
+              alt="People using public transportation" 
+              className="w-64 h-64 object-contain opacity-90 dark:opacity-80"
+            />
+          </div>
+          
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl mb-3">
