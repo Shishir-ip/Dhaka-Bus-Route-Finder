@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { supabase, fetchStats, fetchAllBusesAdmin, fetchAllLocationsAdmin, fetchFeedback, updateFeedbackStatus, deleteFeedback, createBus, updateBus, deleteBus, createLocation, updateLocation, deleteLocation } from '../lib/supabase';
+import { supabase, fetchStats, fetchAllBusesAdmin, fetchAllLocationsAdmin, fetchFeedback, updateFeedbackStatus, deleteFeedback, createBus, updateBus, deleteBus, createLocation, updateLocation, deleteLocation, createRoute, deleteRoute, addRouteStop, deleteRouteStop, updateRouteStopOrder } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { LogOut, Shield, Database, RefreshCw, Bus, MapPin, Route, MessageSquare, Plus, Edit, Trash2, Star, ExternalLink, X, Save } from 'lucide-react';
+import { LogOut, Shield, Database, RefreshCw, Bus, MapPin, Route, MessageSquare, Plus, Edit, Trash2, Star, ExternalLink, X, Save, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import ConnectionError from '../components/ConnectionError';
 import { useData } from '../contexts/DataContext';
-import { DBBus, DBLocation, DBFeedback } from '../lib/supabase';
+import { DBBus, DBLocation, DBFeedback, DBBusRoute, DBRouteStop } from '../lib/supabase';
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -22,6 +22,8 @@ export default function AdminPage() {
   const [editingLocation, setEditingLocation] = useState<DBLocation | null>(null);
   const [showBusForm, setShowBusForm] = useState(false);
   const [showLocationForm, setShowLocationForm] = useState(false);
+  const [showRouteEditor, setShowRouteEditor] = useState(false);
+  const [editingRoute, setEditingRoute] = useState<DBBusRoute | null>(null);
   const { language, t } = useLanguage();
   const { loading: dataLoading, error, configError, refetch } = useData();
 
@@ -135,6 +137,62 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Failed to delete bus:', err);
       alert('Failed to delete bus. Check console for details.');
+    }
+  };
+
+  const handleCreateRoute = async (busId: string, direction: 'up' | 'down' | 'both' = 'both') => {
+    try {
+      await createRoute({ bus_id: busId, direction });
+      loadAllData();
+      refetch();
+    } catch (err) {
+      console.error('Failed to create route:', err);
+      alert('Failed to create route. Check console for details.');
+    }
+  };
+
+  const handleDeleteRoute = async (routeId: string) => {
+    if (!confirm('Delete this route and all its stops?')) return;
+    try {
+      await deleteRoute(routeId);
+      loadAllData();
+      refetch();
+    } catch (err) {
+      console.error('Failed to delete route:', err);
+      alert('Failed to delete route. Check console for details.');
+    }
+  };
+
+  const handleAddStop = async (routeId: string, locationId: string, order: number) => {
+    try {
+      await addRouteStop({ route_id: routeId, location_id: locationId, stop_order: order });
+      loadAllData();
+      refetch();
+    } catch (err) {
+      console.error('Failed to add stop:', err);
+      alert('Failed to add stop. Check console for details.');
+    }
+  };
+
+  const handleDeleteStop = async (stopId: string) => {
+    try {
+      await deleteRouteStop(stopId);
+      loadAllData();
+      refetch();
+    } catch (err) {
+      console.error('Failed to delete stop:', err);
+      alert('Failed to delete stop. Check console for details.');
+    }
+  };
+
+  const handleReorderStops = async (routeId: string, stops: { id: string; order: number }[]) => {
+    try {
+      await updateRouteStopOrder(routeId, stops);
+      loadAllData();
+      refetch();
+    } catch (err) {
+      console.error('Failed to reorder stops:', err);
+      alert('Failed to reorder stops. Check console for details.');
     }
   };
 
@@ -330,24 +388,33 @@ export default function AdminPage() {
 
           <div className="space-y-2">
             {buses.map(bus => (
-              <div key={bus.id} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900 dark:text-white">{bus.name_en}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{bus.name_bn}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => { setEditingBus(bus); setShowBusForm(true); }}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                  >
-                    <Edit size={16} className="text-gray-600 dark:text-gray-400" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteBus(bus.id)}
-                    className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  >
-                    <Trash2 size={16} className="text-red-500" />
-                  </button>
+              <div key={bus.id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900 dark:text-white">{bus.name_en}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{bus.name_bn}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setEditingBus(bus); setShowRouteEditor(true); }}
+                      className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <Route size={14} className="inline mr-1" />
+                      {language === 'bn' ? 'রুট' : 'Routes'} ({bus.routes?.length || 0})
+                    </button>
+                    <button
+                      onClick={() => { setEditingBus(bus); setShowBusForm(true); }}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                    >
+                      <Edit size={16} className="text-gray-600 dark:text-gray-400" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteBus(bus.id)}
+                      className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={16} className="text-red-500" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -358,6 +425,19 @@ export default function AdminPage() {
               bus={editingBus}
               onSave={handleSaveBus}
               onCancel={() => { setShowBusForm(false); setEditingBus(null); }}
+            />
+          )}
+
+          {showRouteEditor && editingBus && (
+            <RouteEditor
+              bus={editingBus}
+              locations={locations}
+              onClose={() => { setShowRouteEditor(false); setEditingBus(null); }}
+              onCreateRoute={handleCreateRoute}
+              onDeleteRoute={handleDeleteRoute}
+              onAddStop={handleAddStop}
+              onDeleteStop={handleDeleteStop}
+              onReorderStops={handleReorderStops}
             />
           )}
         </div>
@@ -690,6 +770,228 @@ function BusForm({ bus, onSave, onCancel }: { bus: DBBus | null; onSave: (data: 
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function RouteEditor({ 
+  bus, 
+  locations, 
+  onClose, 
+  onCreateRoute, 
+  onDeleteRoute, 
+  onAddStop, 
+  onDeleteStop, 
+  onReorderStops 
+}: { 
+  bus: DBBus;
+  locations: DBLocation[];
+  onClose: () => void;
+  onCreateRoute: (busId: string, direction: 'up' | 'down' | 'both') => void;
+  onDeleteRoute: (routeId: string) => void;
+  onAddStop: (routeId: string, locationId: string, order: number) => void;
+  onDeleteStop: (stopId: string) => void;
+  onReorderStops: (routeId: string, stops: { id: string; order: number }[]) => void;
+}) {
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(
+    bus.routes && bus.routes.length > 0 ? bus.routes[0].id : null
+  );
+  const [newStopLocationId, setNewStopLocationId] = useState('');
+  const [newRouteDirection, setNewRouteDirection] = useState<'up' | 'down' | 'both'>('both');
+
+  const selectedRoute = bus.routes?.find(r => r.id === selectedRouteId);
+  const sortedStops = selectedRoute?.stops?.sort((a, b) => a.stop_order - b.stop_order) || [];
+
+  const handleAddStop = () => {
+    if (!selectedRouteId || !newStopLocationId) return;
+    const nextOrder = sortedStops.length > 0 
+      ? Math.max(...sortedStops.map(s => s.stop_order)) + 1 
+      : 1;
+    onAddStop(selectedRouteId, newStopLocationId, nextOrder);
+    setNewStopLocationId('');
+  };
+
+  const handleMoveUp = (index: number) => {
+    if (index === 0 || !selectedRoute) return;
+    const newStops = [...sortedStops];
+    [newStops[index - 1], newStops[index]] = [newStops[index], newStops[index - 1]];
+    onReorderStops(selectedRoute.id, newStops.map((s, i) => ({ id: s.id, order: i + 1 })));
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index === sortedStops.length - 1 || !selectedRoute) return;
+    const newStops = [...sortedStops];
+    [newStops[index], newStops[index + 1]] = [newStops[index + 1], newStops[index]];
+    onReorderStops(selectedRoute.id, newStops.map((s, i) => ({ id: s.id, order: i + 1 })));
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Manage Routes: {bus.name_en}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{bus.name_bn}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Routes List */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-gray-900 dark:text-white">Routes</h4>
+              <button
+                onClick={() => onCreateRoute(bus.id, newRouteDirection)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Plus size={14} />
+                Add Route
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 mb-3">
+              <label className="text-sm text-gray-600 dark:text-gray-400">Direction:</label>
+              <select
+                value={newRouteDirection}
+                onChange={(e) => setNewRouteDirection(e.target.value as 'up' | 'down' | 'both')}
+                className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white"
+              >
+                <option value="both">Both Directions</option>
+                <option value="up">Up Only</option>
+                <option value="down">Down Only</option>
+              </select>
+            </div>
+
+            {bus.routes && bus.routes.length > 0 ? (
+              <div className="space-y-2">
+                {bus.routes.map(route => (
+                  <div
+                    key={route.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedRouteId === route.id
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    }`}
+                    onClick={() => setSelectedRouteId(route.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          Route {route.id.slice(0, 8)}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Direction: {route.direction} • {route.stops?.length || 0} stops
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteRoute(route.id);
+                        }}
+                        className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={14} className="text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No routes yet. Add one above.</p>
+            )}
+          </div>
+
+          {/* Selected Route Stops */}
+          {selectedRoute && (
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                Stops for Route {selectedRoute.id.slice(0, 8)}
+              </h4>
+
+              {/* Add Stop */}
+              <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <select
+                  value={newStopLocationId}
+                  onChange={(e) => setNewStopLocationId(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white"
+                >
+                  <option value="">Select a location...</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name_en} ({loc.name_bn})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAddStop}
+                  disabled={!newStopLocationId}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Add Stop
+                </button>
+              </div>
+
+              {/* Stops List */}
+              {sortedStops.length > 0 ? (
+                <div className="space-y-2">
+                  {sortedStops.map((stop, index) => {
+                    const location = locations.find(l => l.id === stop.location_id);
+                    return (
+                      <div
+                        key={stop.id}
+                        className="flex items-center gap-2 p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+                      >
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => handleMoveUp(index)}
+                            disabled={index === 0}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 rounded transition-colors"
+                          >
+                            <ArrowUp size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleMoveDown(index)}
+                            disabled={index === sortedStops.length - 1}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 rounded transition-colors"
+                          >
+                            <ArrowDown size={14} />
+                          </button>
+                        </div>
+                        <div className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-full text-sm font-medium text-gray-600 dark:text-gray-400">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {location?.name_en || 'Unknown'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {location?.name_bn}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => onDeleteStop(stop.id)}
+                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={14} className="text-red-500" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No stops yet. Add one above.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
