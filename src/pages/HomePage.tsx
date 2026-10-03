@@ -19,13 +19,28 @@ export default function HomePage() {
 
   const handleSearch = () => {
     if (!from || !to) return;
+    
+    // Handle same origin/destination
+    if (from.id === to.id) {
+      setResults([]);
+      setSearched(true);
+      return;
+    }
+    
     setLoading(true);
     setTimeout(() => {
-      const found = findRoutes(from.id, to.id, buses, getLocationById);
-      setResults(found);
-      setSearched(true);
-      setLoading(false);
-    }, 300);
+      try {
+        const found = findRoutes(from.id, to.id, buses, getLocationById);
+        setResults(found);
+        setSearched(true);
+      } catch (error) {
+        console.error('Route search failed:', error);
+        setResults([]);
+        setSearched(true);
+      } finally {
+        setLoading(false);
+      }
+    }, 100);
   };
 
   const handleSwap = () => {
@@ -42,13 +57,28 @@ export default function HomePage() {
     if (fromLoc && toLoc) {
       setFrom(fromLoc);
       setTo(toLoc);
+      
+      // Handle same origin/destination
+      if (fromId === toId) {
+        setResults([]);
+        setSearched(true);
+        return;
+      }
+      
       setLoading(true);
       setTimeout(() => {
-        const found = findRoutes(fromId, toId, buses, getLocationById);
-        setResults(found);
-        setSearched(true);
-        setLoading(false);
-      }, 300);
+        try {
+          const found = findRoutes(fromId, toId, buses, getLocationById);
+          setResults(found);
+          setSearched(true);
+        } catch (error) {
+          console.error('Route search failed:', error);
+          setResults([]);
+          setSearched(true);
+        } finally {
+          setLoading(false);
+        }
+      }, 100);
     }
   };
 

@@ -1,140 +1,144 @@
 import { Bus, JourneyResult, JourneySegment, Location, BusRoute } from '../types';
 
-// Configuration
-const MAX_TRANSFERS = 2; // Maximum number of transfers to search
-const MAX_RESULTS = 8; // Maximum results to return
-const TRANSFER_PENALTY = 3; // Penalty for each transfer in scoring
+// Configuration - STRICT LIMITS
+const MAX_TRANSFERS = 2;
+const MAX_RESULTS = 8;
+const MAX_STATES_EXPLORED = 5000; // Hard limit to prevent freeze
+const TRANSFER_PENALTY = 3;
 
-// Journey state for BFS search
-interface JourneyState {
-  currentLocation: string;
-  destination: string;
+// Pre-computed route data for efficiency
+interface RouteData {
+  bus: Bus;
+  route: BusRoute;
+  stops: string[]; // Pre-computed stop array
+}
+
+// Index structure
+interface RouteIndex {
+  // locationId -> routes that contain this location
+  locationToRoutes: Map<string, RouteData[]>;
+  // routeId -> route data
+  routeById: Map<string, RouteData>;
+}
+
+// Search state - compact representation
+interface SearchState {
+  locationId: string;
+  transfers: number;
   segments: JourneySegment[];
-  visitedLocations: Set<string>;
-  usedBuses: Set<string>;
+  visitedLocations: string[]; // Use array instead of Set for efficiency
+  usedBusIds: string[]; // Use array instead of Set
   totalStops: number;
-  totalTransfers: number;
+  cost: number; // For priority queue
 }
 
-// Route graph index for efficient searching
-interface RouteGraph {
-  // locationId -> array of { bus, route, stopIndex }
-  locationToRoutes: Map<string, Array<{
-    bus: Bus;
-    route: BusRoute;
-    stopIndex: number;
-  }>>;
-}
+// Visited state key for deduplication
+type StateKey = string;
 
 /**
- * Build an efficient index of the route network
+ * Build efficient route index ONCE
  */
-function buildRouteGraph(buses: Bus[]): RouteGraph {
-  const locationToRoutes = new Map<string, Array<{
-    bus: Bus;
-    route: BusRoute;
-    stopIndex: number;
-  }>>();
+function buildRouteIndex(buses: Bus[]): RouteIndex {
+  const locationToRoutes = new Map<string, RouteData[]>();
+  const routeById = new Map<string, RouteData>();
 
   for (const bus of buses) {
     if (!bus.isActive) continue;
 
     for (const route of bus.routes) {
-      for (let i = 0; i < route.stops.length; i++) {
-        const locationId = route.stops[i].locationId;
-        
+      // Validate route
+      if (!route.stops || route.stops.length < 2) continue;
+
+      // Pre-compute stops array ONCE
+      const stops = route.stops.map(s => s.locationId);
+      
+      // Validate no duplicate consecutive stops
+      let valid = true;
+      for (let i = 1; i < stops.length; i++) {
+        if (stops[i] === stops[i - 1]) {
+          valid = false;
+          break;
+        }
+      }
+      if (!valid) continue;
+
+      const routeData: RouteData = { bus, route, stops };
+      routeById.set(route.id, routeData);
+
+      // Index by location
+      for (const locationId of stops) {
         if (!locationToRoutes.has(locationId)) {
           locationToRoutes.set(locationId, []);
         }
-        
-        locationToRoutes.get(locationId)!.push({
-          bus,
-          route,
-          stopIndex: i,
-        });
+        locationToRoutes.get(locationId)!.push(routeData);
       }
     }
   }
 
-  return { locationToRoutes };
+  return { locationToRoutes, routeById };
 }
 
 /**
- * Check if we can travel from one stop to another on a route
+ * Check if travel is valid on route in given direction
  */
-function canTravelOnRoute(
-  route: BusRoute,
-  fromIndex: number,
-  toIndex: number
-): boolean {
-  if (fromIndex === toIndex) return false;
-
-  if (route.direction === 'both') {
-    return true;
-  } else if (route.direction === 'up') {
-    return fromIndex < toIndex;
-  } else if (route.direction === 'down') {
-    return fromIndex > toIndex;
-  }
-
-  return false;
-}
-
-/**
- * Get the stops between two indices on a route
- */
-function getStopsBetween(
-  route: BusRoute,
-  fromIndex: number,
-  toIndex: number
-): string[] {
-  const stops = route.stops.map(s => s.locationId);
+function canTravel(route: BusRoute, fromIdx: number, toIdx: number): boolean {
+  if (fromIdx === toIdx) return false;
   
-  if (route.direction === 'down' && fromIndex > toIndex) {
-    // Reverse direction
-    return stops.slice(toIndex, fromIndex + 1).reverse();
-  } else {
-    // Forward direction
-    return stops.slice(Math.min(fromIndex, toIndex), Math.max(fromIndex, toIndex) + 1);
+  switch (route.direction) {
+    case 'both':
+      return true;
+    case 'up':
+      return fromIdx < toIdx;
+    case 'down':
+      return fromIdx > toIdx;
+    default:
+      return false;
   }
 }
 
 /**
- * Calculate journey score (lower is better)
+ * Get stops between indices (preserving direction)
  */
-function calculateScore(journey: JourneyResult): number {
-  // Base score is total stops
-  let score = journey.totalStops;
-  
-  // Add penalty for each transfer
-  score += journey.totalTransfers * TRANSFER_PENALTY;
-  
-  // Small penalty for number of buses (encourages simpler journeys)
-  score += journey.segments.length * 0.5;
-  
-  return score;
+function getStopsBetween(stops: string[], fromIdx: number, toIdx: number, direction: string): string[] {
+  if (direction === 'down' && fromIdx > toIdx) {
+    return stops.slice(toIdx, fromIdx + 1).reverse();
+  }
+  return stops.slice(Math.min(fromIdx, toIdx), Math.max(fromIdx, toIdx) + 1);
 }
 
 /**
- * Check if two journeys are duplicates
+ * Calculate journey cost
+ */
+function calculateCost(totalStops: number, transfers: number): number {
+  return totalStops + (transfers * TRANSFER_PENALTY);
+}
+
+/**
+ * Create state key for visited tracking
+ */
+function createStateKey(locationId: string, transfers: number, usedBusIds: string[]): StateKey {
+  // Sort bus IDs for consistent key
+  const sortedBuses = [...usedBusIds].sort().join(',');
+  return `${locationId}|${transfers}|${sortedBuses}`;
+}
+
+/**
+ * Check if journey is duplicate
  */
 function isDuplicate(j1: JourneyResult, j2: JourneyResult): boolean {
   if (j1.segments.length !== j2.segments.length) return false;
   
   for (let i = 0; i < j1.segments.length; i++) {
-    const s1 = j1.segments[i];
-    const s2 = j2.segments[i];
-    
-    if (s1.bus.id !== s2.bus.id) return false;
-    if (s1.boardStop !== s2.boardStop) return false;
-    if (s1.alightStop !== s2.alightStop) return false;
+    if (j1.segments[i].bus.id !== j2.segments[i].bus.id) return false;
+    if (j1.segments[i].boardStop !== j2.segments[i].boardStop) return false;
+    if (j1.segments[i].alightStop !== j2.segments[i].alightStop) return false;
   }
   
   return true;
 }
 
 /**
- * Find all routes from origin to destination
+ * Main route finding function - OPTIMIZED
  */
 export function findRoutes(
   fromId: string,
@@ -142,161 +146,194 @@ export function findRoutes(
   buses: Bus[],
   getLocationById: (id: string) => Location | undefined
 ): JourneyResult[] {
+  const startTime = performance.now();
+  
   // Edge cases
   if (fromId === toId) return [];
+  if (!fromId || !toId) return [];
+
+  // Build index ONCE
+  const index = buildRouteIndex(buses);
   
-  // Build route graph
-  const graph = buildRouteGraph(buses);
-  
-  // Find all possible journeys using BFS
-  const allJourneys: JourneyResult[] = [];
-  
-  // BFS queue
-  const queue: JourneyState[] = [{
-    currentLocation: fromId,
-    destination: toId,
+  // Validate locations exist
+  if (!index.locationToRoutes.has(fromId) || !index.locationToRoutes.has(toId)) {
+    return [];
+  }
+
+  const results: JourneyResult[] = [];
+  const visited = new Map<StateKey, number>(); // stateKey -> best cost
+  let statesExplored = 0;
+
+  // Priority queue (simple array, sorted by cost)
+  const queue: SearchState[] = [{
+    locationId: fromId,
+    transfers: 0,
     segments: [],
-    visitedLocations: new Set([fromId]),
-    usedBuses: new Set(),
+    visitedLocations: [fromId],
+    usedBusIds: [],
     totalStops: 0,
-    totalTransfers: 0,
+    cost: 0,
   }];
-  
-  while (queue.length > 0) {
+
+  // BFS with priority and limits
+  while (queue.length > 0 && statesExplored < MAX_STATES_EXPLORED) {
+    // Get lowest cost state
+    queue.sort((a, b) => a.cost - b.cost);
     const state = queue.shift()!;
     
-    // If we've reached the destination, save this journey
-    if (state.currentLocation === toId && state.segments.length > 0) {
+    statesExplored++;
+
+    // Check if reached destination
+    if (state.locationId === toId && state.segments.length > 0) {
       const journey: JourneyResult = {
-        type: state.totalTransfers === 0 ? 'direct' : 'transfer',
+        type: state.transfers === 0 ? 'direct' : 'transfer',
         segments: state.segments,
-        totalTransfers: state.totalTransfers,
+        totalTransfers: state.transfers,
         totalStops: state.totalStops,
       };
+      results.push(journey);
       
-      allJourneys.push(journey);
-      continue; // Don't explore further from destination
+      // Early termination if we have enough good results
+      if (results.length >= MAX_RESULTS * 2) break;
+      continue;
     }
-    
-    // If we've exceeded max transfers, stop exploring
-    if (state.totalTransfers > MAX_TRANSFERS) continue;
-    
-    // Get all routes that pass through current location
-    const routesAtLocation = graph.locationToRoutes.get(state.currentLocation) || [];
-    
-    for (const { bus, route, stopIndex: fromStopIndex } of routesAtLocation) {
-      // Skip if we've already used this bus
-      if (state.usedBuses.has(bus.id)) continue;
-      
-      // Try to reach destination or intermediate stops
-      const routeStops = route.stops.map(s => s.locationId);
-      
-      for (let toStopIndex = 0; toStopIndex < routeStops.length; toStopIndex++) {
-        const nextLocation = routeStops[toStopIndex];
-        
-        // Skip if we can't travel to this stop
-        if (!canTravelOnRoute(route, fromStopIndex, toStopIndex)) continue;
-        
-        // Skip if we've visited this location (prevent loops)
-        if (state.visitedLocations.has(nextLocation) && nextLocation !== toId) continue;
-        
-        // Create new segment
-        const stops = getStopsBetween(route, fromStopIndex, toStopIndex);
+
+    // Skip if exceeded max transfers
+    if (state.transfers > MAX_TRANSFERS) continue;
+
+    // Skip if cost is too high
+    if (state.totalStops > 50) continue; // Reasonable upper bound
+
+    // Check visited state
+    const stateKey = createStateKey(state.locationId, state.transfers, state.usedBusIds);
+    const bestCost = visited.get(stateKey);
+    if (bestCost !== undefined && bestCost <= state.cost) {
+      continue; // Already found better path to this state
+    }
+    visited.set(stateKey, state.cost);
+
+    // Get routes at current location
+    const routesAtLocation = index.locationToRoutes.get(state.locationId) || [];
+
+    // Explore each route
+    for (const routeData of routesAtLocation) {
+      const { bus, route, stops } = routeData;
+
+      // Skip if already used this bus
+      if (state.usedBusIds.includes(bus.id)) continue;
+
+      // Find current location in route
+      const fromIdx = stops.indexOf(state.locationId);
+      if (fromIdx === -1) continue;
+
+      // Try each reachable stop
+      for (let toIdx = 0; toIdx < stops.length; toIdx++) {
+        if (!canTravel(route, fromIdx, toIdx)) continue;
+
+        const nextLocationId = stops[toIdx];
+
+        // Skip if already visited (prevent loops)
+        if (state.visitedLocations.includes(nextLocationId) && nextLocationId !== toId) {
+          continue;
+        }
+
+        // Calculate segment
+        const segmentStops = getStopsBetween(stops, fromIdx, toIdx, route.direction);
         const segment: JourneySegment = {
           bus,
           route,
-          boardStop: state.currentLocation,
-          alightStop: nextLocation,
-          stops,
-          stopCount: stops.length - 1,
+          boardStop: state.locationId,
+          alightStop: nextLocationId,
+          stops: segmentStops,
+          stopCount: segmentStops.length - 1,
         };
-        
-        // Create new state
-        const newVisited = new Set(state.visitedLocations);
-        newVisited.add(nextLocation);
-        
-        const newUsedBuses = new Set(state.usedBuses);
-        newUsedBuses.add(bus.id);
-        
+
+        // Create new state (efficient - reuse arrays where possible)
+        const newVisitedLocations = [...state.visitedLocations, nextLocationId];
+        const newUsedBusIds = [...state.usedBusIds, bus.id];
         const newSegments = [...state.segments, segment];
-        const newTransfers = state.segments.length > 0 ? state.totalTransfers + 1 : 0;
-        
+        const newTransfers = state.segments.length > 0 ? state.transfers + 1 : 0;
+        const newTotalStops = state.totalStops + segment.stopCount;
+        const newCost = calculateCost(newTotalStops, newTransfers);
+
         queue.push({
-          currentLocation: nextLocation,
-          destination: toId,
+          locationId: nextLocationId,
+          transfers: newTransfers,
           segments: newSegments,
-          visitedLocations: newVisited,
-          usedBuses: newUsedBuses,
-          totalStops: state.totalStops + segment.stopCount,
-          totalTransfers: newTransfers,
+          visitedLocations: newVisitedLocations,
+          usedBusIds: newUsedBusIds,
+          totalStops: newTotalStops,
+          cost: newCost,
         });
       }
     }
   }
-  
+
   // Remove duplicates
-  const uniqueJourneys: JourneyResult[] = [];
-  for (const journey of allJourneys) {
-    const isDupe = uniqueJourneys.some(j => isDuplicate(j, journey));
-    if (!isDupe) {
-      uniqueJourneys.push(journey);
+  const uniqueResults: JourneyResult[] = [];
+  for (const journey of results) {
+    if (!uniqueResults.some(j => isDuplicate(j, journey))) {
+      uniqueResults.push(journey);
     }
   }
-  
-  // Find best direct journey (if any)
-  const directJourneys = uniqueJourneys.filter(j => j.totalTransfers === 0);
+
+  // Find best direct for comparison
+  const directJourneys = uniqueResults.filter(j => j.totalTransfers === 0);
   const bestDirect = directJourneys.length > 0
-    ? directJourneys.reduce((best, j) => calculateScore(j) < calculateScore(best) ? j : best)
+    ? directJourneys.reduce((best, j) => calculateCost(j.totalStops, 0) < calculateCost(best.totalStops, 0) ? j : best)
     : null;
-  
-  // Categorize and score all journeys
-  const categorizedJourneys = uniqueJourneys.map(journey => {
-    const score = calculateScore(journey);
+
+  // Categorize results
+  const categorized = uniqueResults.map(journey => {
+    const cost = calculateCost(journey.totalStops, journey.totalTransfers);
     let category: 'recommended' | 'direct' | 'fewer_stops' | 'alternative' = 'alternative';
     let reason = '';
-    
-    // Determine category
+
     if (journey.totalTransfers === 0) {
       category = 'direct';
       reason = 'Direct — no transfer';
     } else if (bestDirect && journey.totalStops < bestDirect.totalStops - 2) {
-      // Significantly fewer stops (more than 2 stops saved)
       category = 'fewer_stops';
       const saved = bestDirect.totalStops - journey.totalStops;
       reason = `${saved} fewer stops than direct`;
-    } else if (score <= (bestDirect ? calculateScore(bestDirect) : Infinity) + 2) {
-      // Good score, close to best
+    } else if (cost <= (bestDirect ? calculateCost(bestDirect.totalStops, 0) : Infinity) + 2) {
       category = 'recommended';
-      if (journey.totalTransfers === 1) {
-        reason = 'Simple 1-transfer route';
-      } else {
-        reason = 'Efficient journey';
-      }
+      reason = journey.totalTransfers === 1 ? 'Simple 1-transfer route' : 'Efficient journey';
     } else {
       category = 'alternative';
       reason = 'Alternative route';
     }
-    
-    return { journey, score, category, reason };
+
+    return { journey, cost, category, reason };
   });
-  
-  // Sort by score
-  categorizedJourneys.sort((a, b) => a.score - b.score);
-  
-  // Ensure we have a recommended journey
-  if (categorizedJourneys.length > 0 && !categorizedJourneys.some(j => j.category === 'recommended')) {
-    categorizedJourneys[0].category = 'recommended';
-    categorizedJourneys[0].reason = categorizedJourneys[0].journey.totalTransfers === 0
+
+  // Sort by cost
+  categorized.sort((a, b) => a.cost - b.cost);
+
+  // Ensure we have a recommended
+  if (categorized.length > 0 && !categorized.some(c => c.category === 'recommended')) {
+    categorized[0].category = 'recommended';
+    categorized[0].reason = categorized[0].journey.totalTransfers === 0
       ? 'Direct — no transfer'
       : 'Recommended journey';
   }
-  
-  // Limit results
-  const finalResults = categorizedJourneys.slice(0, MAX_RESULTS).map(cj => ({
-    ...cj.journey,
-    category: cj.category,
-    reason: cj.reason,
+
+  // Limit and format results
+  const finalResults = categorized.slice(0, MAX_RESULTS).map(c => ({
+    ...c.journey,
+    category: c.category,
+    reason: c.reason,
   }));
-  
+
+  // Debug logging
+  const endTime = performance.now();
+  console.debug({
+    searchTime: `${(endTime - startTime).toFixed(2)}ms`,
+    statesExplored,
+    resultsFound: finalResults.length,
+    fromId,
+    toId,
+  });
+
   return finalResults;
 }
