@@ -28,15 +28,39 @@ export default function JourneyCard({ result, index }: Props) {
       <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                isDirect
-                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                  : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-              }`}>
-                {isDirect ? t('results.direct') : `${result.totalTransfers} ${t('results.transfers')}`}
-              </span>
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              {/* Category Badge */}
+              {result.category && (
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  result.category === 'recommended'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                    : result.category === 'direct'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                    : result.category === 'fewer_stops'
+                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                }`}>
+                  {result.category === 'recommended' && (language === 'bn' ? 'প্রস্তাবিত' : 'Recommended')}
+                  {result.category === 'direct' && t('results.direct')}
+                  {result.category === 'fewer_stops' && (language === 'bn' ? 'কম স্টপ' : 'Fewer Stops')}
+                  {result.category === 'alternative' && (language === 'bn' ? 'বিকল্প' : 'Alternative')}
+                </span>
+              )}
+              
+              {/* Transfer count */}
+              {!isDirect && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                  {result.totalTransfers} {t('results.transfers')}
+                </span>
+              )}
             </div>
+            
+            {/* Reason */}
+            {result.reason && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 italic">
+                {result.reason}
+              </p>
+            )}
 
             {result.segments.map((segment, idx) => (
               <div key={idx}>
