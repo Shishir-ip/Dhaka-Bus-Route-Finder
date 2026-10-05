@@ -28,17 +28,20 @@ export default function HomePage() {
     
     setLoading(true);
     
-    try {
-      const found = findRoutes(from.id, to.id, buses, getLocationById);
-      setResults(found);
-      setSearched(true);
-    } catch (error) {
-      console.error('[HomePage] Error during search:', error);
-      setResults([]);
-      setSearched(true);
-    } finally {
-      setLoading(false);
-    }
+    // Use setTimeout to prevent UI blocking
+    setTimeout(() => {
+      try {
+        const found = findRoutes(from.id, to.id, buses, getLocationById);
+        setResults(found);
+        setSearched(true);
+      } catch (error) {
+        console.error('[HomePage] Error during search:', error);
+        setResults([]);
+        setSearched(true);
+      } finally {
+        setLoading(false);
+      }
+    }, 0);
   };
 
   const handleSwap = () => {
@@ -64,17 +67,20 @@ export default function HomePage() {
       
       setLoading(true);
       
-      try {
-        const found = findRoutes(fromId, toId, buses, getLocationById);
-        setResults(found);
-        setSearched(true);
-      } catch (error) {
-        console.error('[HomePage] Error during popular route search:', error);
-        setResults([]);
-        setSearched(true);
-      } finally {
-        setLoading(false);
-      }
+      // Use setTimeout to prevent UI blocking
+      setTimeout(() => {
+        try {
+          const found = findRoutes(fromId, toId, buses, getLocationById);
+          setResults(found);
+          setSearched(true);
+        } catch (error) {
+          console.error('[HomePage] Error during popular route search:', error);
+          setResults([]);
+          setSearched(true);
+        } finally {
+          setLoading(false);
+        }
+      }, 0);
     }
   };
 
