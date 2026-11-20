@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bus as BusIcon, ArrowRight, ChevronDown, ChevronUp, Repeat } from 'lucide-react';
+import { Bus as BusIcon, ArrowRight, ChevronDown, ChevronUp, Repeat, TrainFront } from 'lucide-react';
 import type { JourneyResult } from '../types';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -63,10 +63,13 @@ export default function JourneyCard({ result }: Props) {
         </div>
 
         <div className="space-y-2.5">
-          {result.segments.map((segment, idx) => (
+          {result.segments.map((segment, idx) => {
+            const isMetro = segment.bus.type === 'Metro';
+            const SegIcon = isMetro ? TrainFront : BusIcon;
+            return (
             <div key={idx}>
               <div className="flex items-center gap-2 flex-wrap">
-                <BusIcon size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <SegIcon size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <Link
                   to={`/bus/${getBusRouteSlug(segment.bus)}`}
                   className="text-sm font-semibold text-gray-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
@@ -97,7 +100,8 @@ export default function JourneyCard({ result }: Props) {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <button

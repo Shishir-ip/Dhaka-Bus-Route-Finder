@@ -5,6 +5,7 @@ import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { StarDisplay } from '../components/StarRating';
 import ConnectionError from '../components/ConnectionError';
+import { fuzzyMatch } from '../utils/fuzzy';
 
 export default function BusesPage() {
   const [query, setQuery] = useState('');
@@ -14,9 +15,9 @@ export default function BusesPage() {
 
   const filtered = useMemo(() => {
     const active = buses.filter((b) => b.isActive);
-    const q = query.toLowerCase().trim();
+    const q = query.trim();
     const list = q
-      ? active.filter((b) => b.nameEn.toLowerCase().includes(q) || b.nameBn.toLowerCase().includes(q))
+      ? active.filter((b) => fuzzyMatch(q, b.nameEn) > 0 || fuzzyMatch(q, b.nameBn) > 0)
       : active;
     return [...list].sort((a, b) =>
       sort === 'rating'

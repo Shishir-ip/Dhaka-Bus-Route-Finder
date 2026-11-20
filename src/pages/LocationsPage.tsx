@@ -4,6 +4,7 @@ import { Search, MapPin } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import ConnectionError from '../components/ConnectionError';
+import { fuzzyMatch } from '../utils/fuzzy';
 
 export default function LocationsPage() {
   const [query, setQuery] = useState('');
@@ -11,13 +12,13 @@ export default function LocationsPage() {
   const { locations, loading, error, configError, getLocationSlug, getBusesForLocation } = useData();
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
+    const q = query.trim();
     const list = q
       ? locations.filter(
           (l) =>
-            l.nameEn.toLowerCase().includes(q) ||
-            l.nameBn.toLowerCase().includes(q) ||
-            l.aliases.some((a) => a.toLowerCase().includes(q))
+            fuzzyMatch(q, l.nameEn) > 0 ||
+            fuzzyMatch(q, l.nameBn) > 0 ||
+            l.aliases.some((a) => fuzzyMatch(q, a) > 0)
         )
       : locations;
     return [...list].sort((a, b) => a.nameEn.localeCompare(b.nameEn));

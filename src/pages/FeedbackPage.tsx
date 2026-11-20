@@ -1,13 +1,18 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Send, CheckCircle } from 'lucide-react';
 import { submitFeedback, isSupabaseConfigured } from '../lib/supabase';
 import { useLanguage } from '../contexts/LanguageContext';
 
 export default function FeedbackPage() {
+  const [params] = useSearchParams();
+  const reportedBus = params.get('bus')?.trim() || '';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
+  const [subject, setSubject] = useState(reportedBus ? `Wrong route/info: ${reportedBus}` : '');
+  const [message, setMessage] = useState(
+    reportedBus ? `Bus: ${reportedBus}\nWhat is wrong: \nCorrect route/stops: ` : ''
+  );
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');

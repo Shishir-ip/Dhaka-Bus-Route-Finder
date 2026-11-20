@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { ArrowRightLeft, Search, Bus, Repeat, Star, MapPin } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowRightLeft, Search, Bus, Repeat, Star, MapPin, TrainFront } from 'lucide-react';
 import type { Location, JourneyResult } from '../types';
 import LocationAutocomplete from '../components/LocationAutocomplete';
 import JourneyCard from '../components/JourneyCard';
@@ -14,8 +14,21 @@ export default function HomePage() {
   const [results, setResults] = useState<JourneyResult[]>([]);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'all' | 'bus'>(() =>
+    localStorage.getItem('dbf-mode') === 'bus' ? 'bus' : 'all'
+  );
   const { t, language } = useLanguage();
   const { buses, locations, loading: dataLoading, error, configError, getBusesForLocation } = useData();
+
+  useEffect(() => {
+    localStorage.setItem('dbf-mode', mode);
+  }, [mode]);
+
+  // "Bus only" hides the metro from recommendations entirely.
+  const searchBuses = useMemo(
+    () => (mode === 'bus' ? buses.filter((b) => b.type !== 'Metro') : buses),
+    [buses, mode]
+  );
 
   const runSearch = (a: Location | null, b: Location | null) => {
     if (!a || !b) return;
@@ -28,7 +41,7 @@ export default function HomePage() {
     // Yield a frame so the spinner paints before the synchronous search.
     setTimeout(() => {
       try {
-        setResults(findRoutes(a.id, b.id, buses));
+        setResults(findRoutes(a.id, b.id, searchBuses));
       } catch (err) {
         console.error('Search failed:', err);
         setResults([]);
@@ -37,6 +50,14 @@ export default function HomePage() {
       }
     }, 30);
   };
+
+  // Re-rank live when the user switches Bus + Metro / Bus only.
+  useEffect(() => {
+    if (searched && from && to && from.id !== to.id) {
+      setResults(findRoutes(from.id, to.id, searchBuses));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, searchBuses]);
 
   const handleSwap = () => {
     setFrom(to);
@@ -65,11 +86,11 @@ export default function HomePage() {
     for (const [a, b] of wanted) {
       const la = hubs.find((l) => l.nameEn === a);
       const lb = hubs.find((l) => l.nameEn === b);
-      if (la && lb && hasDirectBus(la.id, lb.id, buses)) pairs.push({ from: la, to: lb });
+      if (la && lb && hasDirectBus(la.id, lb.id, searchBuses)) pairs.push({ from: la, to: lb });
       if (pairs.length >= 6) break;
     }
     return pairs;
-  }, [locations, buses]);
+  }, [locations, searchBuses]);
 
   if (dataLoading || error || configError) return <ConnectionError />;
 
@@ -130,6 +151,34 @@ export default function HomePage() {
               )}
               {t('search.findBuses')}
             </button>
+
+            {/* Transport mode toggle */}
+            <div className="flex items-center justify-center gap-1 mt-3">
+              <button
+                type="button"
+                onClick={() => setMode('all')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  mode === 'all'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <TrainFront size={13} />
+                {t('search.modeAll')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('bus')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  mode === 'bus'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <Bus size={13} />
+                {t('search.modeBus')}
+              </button>
+            </div>
           </form>
 
           {popularRoutes.length > 0 && (

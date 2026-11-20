@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import {
   getSupabaseConfigStatus,
   fetchPublicData,
@@ -8,6 +8,36 @@ import {
   DBRouteStop,
 } from '../lib/supabase';
 import type { Bus, Location } from '../types';
+import { fuzzyMatch } from '../utils/fuzzy';
+
+// ---------- localStorage cache (stale-while-revalidate) ----------
+const CACHE_KEY = 'dbf-data-v1';
+
+interface CacheShape {
+  ts: number;
+  buses: Bus[];
+  locations: Location[];
+}
+
+function readCache(): CacheShape | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CacheShape;
+    if (!Array.isArray(parsed?.buses) || !Array.isArray(parsed?.locations)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(buses: Bus[], locations: Location[]) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), buses, locations }));
+  } catch {
+    // Storage full or unavailable — caching is best-effort.
+  }
+}
 
 function convertLocation(db: DBLocation): Location {
   return {
@@ -75,9 +105,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+  const hasDataRef = useRef(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
     setError(null);
     const status = getSupabaseConfigStatus();
     if (status !== 'configured') {
@@ -93,18 +124,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setConfigError(null);
     try {
       const { buses: dbBuses, locations: dbLocations } = await fetchPublicData();
-      setBuses(dbBuses.map(convertBus));
-      setLocations(dbLocations.map(convertLocation));
+      const appBuses = dbBuses.map(convertBus);
+      const appLocations = dbLocations.map(convertLocation);
+      setBuses(appBuses);
+      setLocations(appLocations);
+      hasDataRef.current = true;
+      writeCache(appBuses, appLocations);
     } catch (err) {
       console.error('Failed to fetch data from Supabase:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load data from the database.');
+      // With cached data on screen, a failed background refresh stays silent.
+      if (!background || !hasDataRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to load data from the database.');
+      }
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
+    if (getSupabaseConfigStatus() !== 'configured') {
+      fetchData();
+      return;
+    }
+    const cached = readCache();
+    if (cached) {
+      // Instant paint from cache, then revalidate quietly in the background.
+      setBuses(cached.buses);
+      setLocations(cached.locations);
+      hasDataRef.current = true;
+      setLoading(false);
+      fetchData(true);
+    } else {
+      fetchData();
+    }
   }, [fetchData]);
 
   // ---------- Indexes (built once per data change) ----------
@@ -172,19 +224,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const searchLocations = useCallback(
     (query: string, lang: 'en' | 'bn'): Location[] => {
-      const q = query.toLowerCase().trim();
+      const q = query.trim();
       if (!q) return [];
       const scored: { loc: Location; score: number }[] = [];
       for (const loc of locations) {
-        const primary = (lang === 'bn' ? loc.nameBn : loc.nameEn).toLowerCase();
-        const secondary = (lang === 'bn' ? loc.nameEn : loc.nameBn).toLowerCase();
-        let score = 0;
-        if (primary === q) score = 100;
-        else if (primary.startsWith(q)) score = 80;
-        else if (primary.includes(q)) score = 60;
-        else if (secondary.startsWith(q)) score = 50;
-        else if (secondary.includes(q)) score = 40;
-        else if (loc.aliases.some((a) => a.toLowerCase().includes(q))) score = 30;
+        const primary = lang === 'bn' ? loc.nameBn : loc.nameEn;
+        const secondary = lang === 'bn' ? loc.nameEn : loc.nameBn;
+        let score = fuzzyMatch(q, primary);
+        score = Math.max(score, fuzzyMatch(q, secondary) * 0.85);
+        for (const alias of loc.aliases) {
+          score = Math.max(score, fuzzyMatch(q, alias) * 0.75);
+        }
         if (score > 0) scored.push({ loc, score });
       }
       scored.sort((a, b) => b.score - a.score || a.loc.nameEn.localeCompare(b.loc.nameEn));
@@ -199,7 +249,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     loading,
     error,
     configError,
-    refetch: fetchData,
+    refetch: () => fetchData(true),
     getLocationById,
     getBusById,
     searchLocations,

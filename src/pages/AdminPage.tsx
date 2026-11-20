@@ -625,6 +625,7 @@ function BusForm({ bus, onSave, onCancel }: {
               <option>Local</option>
               <option>AC</option>
               <option>Express</option>
+              <option>Metro</option>
             </select>
           </div>
           <div>

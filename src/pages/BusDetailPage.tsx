@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { Bus as BusIcon, Clock, Tag, ArrowLeft, ArrowRight, Wrench } from 'lucide-react';
+import { Bus as BusIcon, Clock, Tag, ArrowLeft, ArrowRight, Wrench, Flag } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { StarDisplay } from '../components/StarRating';
@@ -100,6 +100,16 @@ export default function BusDetailPage() {
           {bus.description && (
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 whitespace-pre-wrap">{bus.description}</p>
           )}
+
+          <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
+            <Link
+              to={`/feedback?bus=${encodeURIComponent(bus.nameEn)}`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            >
+              <Flag size={13} />
+              {t('bus.report')}
+            </Link>
+          </div>
         </div>
       </div>
 

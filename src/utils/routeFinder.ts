@@ -9,6 +9,9 @@ const ONE_TRANSFER_CAP = 400;
 const TWO_TRANSFER_CAP = 300;
 const TIME_BUDGET_MS = 1500;
 const MIN_RESULTS_BEFORE_TWO_TRANSFER = 4;
+// Metro stops are ~2 min apart vs ~4+ min for buses in Dhaka traffic,
+// so a metro stop counts as half a bus stop when scoring journeys.
+const METRO_STOP_WEIGHT = 0.5;
 
 interface RouteInfo {
   bus: Bus;
@@ -52,7 +55,8 @@ function makeJourney(legs: Leg[]): JourneyResult {
   const totalTransfers = segments.length - 1;
   const starSum = segments.reduce((a, s) => a + (s.bus.starRating || 0), 0);
   const avgStar = starSum / segments.length;
-  const score = totalStops + totalTransfers * TRANSFER_PENALTY - avgStar * STAR_BONUS;
+  const weightedStops = segments.reduce((a, s) => a + s.stopCount * (s.bus.type === 'Metro' ? METRO_STOP_WEIGHT : 1), 0);
+  const score = weightedStops + totalTransfers * TRANSFER_PENALTY - avgStar * STAR_BONUS;
   return {
     type: totalTransfers === 0 ? 'direct' : 'transfer',
     segments,
