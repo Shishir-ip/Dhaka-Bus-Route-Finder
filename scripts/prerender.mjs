@@ -15,7 +15,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const SITE = 'https://dhaka-bus-route-finder.vercel.app';
 const PAGE_SIZE = 1000;
-const MAX_ROUTE_PAGES = 1200;
+const MAX_ROUTE_PAGES = 900;
 
 const { render, findRoutes, buildSlugMaps } = await import(pathToFileURL(join(dist, 'server', 'entry-server.js')).href);
 
@@ -131,7 +131,7 @@ for (const b of data.buses) {
   if (!b.isActive) continue;
   for (const r of b.routes) for (const id of new Set(r.stops.map((s) => s.locationId))) counts.set(id, (counts.get(id) || 0) + 1);
 }
-const hubIds = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 22).map(([id]) => id);
+const hubIds = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 18).map(([id]) => id);
 for (const b of data.buses) {
   if (b.type === 'Metro') for (const r of b.routes) for (const s of r.stops) if (!hubIds.includes(s.locationId)) hubIds.push(s.locationId);
 }
