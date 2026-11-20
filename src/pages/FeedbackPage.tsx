@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { Send, CheckCircle } from 'lucide-react';
 import { submitFeedback, isSupabaseConfigured } from '../lib/supabase';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSEO, listMeta } from '../utils/seo';
 
 export default function FeedbackPage() {
+  useSEO(listMeta('feedback'));
   const [params] = useSearchParams();
   const reportedBus = params.get('bus')?.trim() || '';
   const [name, setName] = useState('');

@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Home, Search, Bus } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSEO } from '../utils/seo';
 
 export default function NotFoundPage() {
   const { t } = useLanguage();
+  useSEO({ title: 'Page not found — Dhaka Bus Finder', description: '', noindex: true });
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="text-center">

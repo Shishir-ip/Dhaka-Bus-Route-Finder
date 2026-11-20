@@ -36,6 +36,71 @@ body {
   animation: fade-in 0.18s ease-out;
 }
 
+/* ---------- Springy micro-interactions (CSS-only) ---------- */
+:root {
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Buttons/chips squash slightly when pressed, then spring back. */
+.press {
+  transition: transform 0.25s var(--spring), background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.press:active {
+  transform: scale(0.94);
+}
+
+/* Cards lift with a springy hover. */
+.card-lift {
+  transition: transform 0.3s var(--spring), border-color 0.15s ease, box-shadow 0.3s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Elements pop in with a small overshoot. */
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.96) translateY(6px); }
+  60% { opacity: 1; transform: scale(1.012) translateY(-1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pop-in {
+  animation: pop-in 0.32s var(--spring);
+}
+
+/* Star picker pop on selection. */
+@keyframes star-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.35) rotate(-8deg); }
+  100% { transform: scale(1); }
+}
+.star-pop:active svg {
+  animation: star-pop 0.35s var(--spring);
+}
+
+/* Skeleton shimmer instead of flat pulse. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgb(243 244 246);
+}
+.dark .skeleton {
+  background-color: rgb(31 41 55);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  animation: shimmer 1.4s infinite;
+}
+.dark .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.07), transparent);
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

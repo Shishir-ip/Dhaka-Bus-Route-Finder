@@ -42,7 +42,7 @@ export default function JourneyCard({ result }: Props) {
 
   return (
     <div
-      className={`bg-white dark:bg-gray-900 rounded-xl border overflow-hidden fade-in ${
+      className={`bg-white dark:bg-gray-900 rounded-xl border overflow-hidden pop-in card-lift ${
         category === 'recommended' ? 'border-emerald-300 dark:border-emerald-800' : 'border-gray-200 dark:border-gray-800'
       }`}
     >

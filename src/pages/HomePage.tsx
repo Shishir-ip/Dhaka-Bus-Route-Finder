@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRightLeft, Search, Bus, Repeat, Star, MapPin, TrainFront } from 'lucide-react';
 import type { Location, JourneyResult } from '../types';
 import LocationAutocomplete from '../components/LocationAutocomplete';
 import JourneyCard from '../components/JourneyCard';
 import ConnectionError from '../components/ConnectionError';
 import { findRoutes, hasDirectBus } from '../utils/routeFinder';
+import { useSEO, homeMeta, HOME_FAQ } from '../utils/seo';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -15,10 +17,12 @@ export default function HomePage() {
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'all' | 'bus'>(() =>
-    localStorage.getItem('dbf-mode') === 'bus' ? 'bus' : 'all'
+    typeof window !== 'undefined' && localStorage.getItem('dbf-mode') === 'bus' ? 'bus' : 'all'
   );
   const { t, language } = useLanguage();
-  const { buses, locations, loading: dataLoading, error, configError, getBusesForLocation } = useData();
+  const { buses, locations, loading: dataLoading, error, configError, getBusesForLocation, getLocationSlug } = useData();
+
+  useSEO(homeMeta());
 
   useEffect(() => {
     localStorage.setItem('dbf-mode', mode);
@@ -108,7 +112,12 @@ export default function HomePage() {
             {t('app.network')} · {buses.length} {t('buses.count')}
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-3">{t('app.tagline')}</h1>
-          <p className="text-gray-500 dark:text-gray-400 mb-8">{t('app.subtitle')}</p>
+          <p className="text-gray-500 dark:text-gray-400 mb-3">{t('app.subtitle')}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 max-w-xl mx-auto mb-8 leading-relaxed">
+            {language === 'bn'
+              ? 'ঢাকা শহরের সব বাস রুট, এমআরটি লাইন ৬ মেট্রো ও ট্রান্সফার যাত্রা খুঁজুন — মিরপুর, উত্তরা, গুলশান, ধানমন্ডি, মোহাম্মদপুর, মতিঝিল, ফার্মগেট, গাবতলী, সায়েদাবাদ, যাত্রাবাড়ী, সাভার ও টঙ্গীসহ সারা ঢাকা।'
+              : 'Search every Dhaka bus route, MRT Line 6 metro and transfer journey — across Mirpur, Uttara, Gulshan, Dhanmondi, Mohammadpur, Motijheel, Farmgate, Gabtoli, Sayedabad, Jatrabari, Savar, Tongi and greater Dhaka.'}
+          </p>
 
           <form
             onSubmit={(e) => {
@@ -142,7 +151,7 @@ export default function HomePage() {
             <button
               type="submit"
               disabled={!from || !to || loading}
-              className="w-full mt-4 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="press w-full mt-4 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -157,7 +166,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setMode('all')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                className={`press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
                   mode === 'all'
                     ? 'bg-emerald-600 text-white'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -169,7 +178,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setMode('bus')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                className={`press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
                   mode === 'bus'
                     ? 'bg-emerald-600 text-white'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -186,17 +195,13 @@ export default function HomePage() {
               <p className="text-xs text-gray-400 dark:text-gray-500 mb-2.5">{t('search.popular')}</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {popularRoutes.map((r, i) => (
-                  <button
+                  <Link
                     key={i}
-                    onClick={() => {
-                      setFrom(r.from);
-                      setTo(r.to);
-                      runSearch(r.from, r.to);
-                    }}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800 rounded-full hover:border-emerald-300 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                    to={`/route/${getLocationSlug(r.from)}/${getLocationSlug(r.to)}`}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800 rounded-full hover:border-emerald-300 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors press"
                   >
                     {language === 'bn' ? `${r.from.nameBn} → ${r.to.nameBn}` : `${r.from.nameEn} → ${r.to.nameEn}`}
-                  </button>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -224,7 +229,7 @@ export default function HomePage() {
               {loading ? (
                 <div className="space-y-3">
                   {[0, 1, 2].map((i) => (
-                    <div key={i} className="h-28 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 animate-pulse" />
+                    <div key={i} className="skeleton h-28 rounded-xl border border-gray-200 dark:border-gray-800" />
                   ))}
                 </div>
               ) : results.length === 0 ? (
@@ -273,6 +278,24 @@ export default function HomePage() {
           </p>
         </section>
       )}
+
+      {/* FAQ — matches the FAQPage structured data for rich results */}
+      <section className="max-w-2xl mx-auto px-4 sm:px-6 pb-12">
+        <h2 className="font-semibold text-gray-900 dark:text-white mb-3">
+          {language === 'bn' ? 'সাধারণ জিজ্ঞাসা' : 'Frequently asked questions'}
+        </h2>
+        <div className="space-y-2.5">
+          {HOME_FAQ.map((f, i) => (
+            <details key={i} className="group border border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-900 p-4">
+              <summary className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer list-none flex items-center justify-between gap-2">
+                {f.q}
+                <span className="text-gray-400 group-open:rotate-45 transition-transform text-lg leading-none">+</span>
+              </summary>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 leading-relaxed">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

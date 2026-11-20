@@ -10,6 +10,7 @@ const ThemeContext = createContext<ThemeContextType>({ theme: 'light', toggleThe
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'light';
     const saved = localStorage.getItem('theme');
     if (saved === 'dark' || saved === 'light') return saved;
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';

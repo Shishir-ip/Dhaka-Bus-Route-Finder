@@ -2,10 +2,12 @@ import { Link } from 'react-router-dom';
 import { Bus, Repeat, Star, MapPin } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSEO, listMeta } from '../utils/seo';
 
 export default function AboutPage() {
   const { t } = useLanguage();
   const { buses, locations } = useData();
+  useSEO(listMeta('about'));
 
   const features = [
     { icon: Bus, key: 'about.feature1' },

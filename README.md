@@ -47,9 +47,27 @@ On Vercel (or your host), set the same two variables in the project's Environmen
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-npm run build      # production build in dist/
+npm run build      # production build + SSR pre-render of all pages + sitemap
+npm run build:spa  # SPA-only build (no pre-render)
 npm run typecheck  # TypeScript check
+npm run og         # regenerate public/og.png social share card
 ```
+
+The full build pre-renders ~1500 static HTML pages (every bus, location and popular
+journey) with per-page titles, meta descriptions, canonical URLs, Open Graph tags
+and JSON-LD structured data (WebSite, BusTrip, BreadcrumbList, FAQPage). It needs
+data at build time: on Vercel it reads `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
+automatically; locally you can point `PRERENDER_DATA_FILE` at a dataset JSON.
+Without either, the build still succeeds as a normal SPA.
+
+## SEO
+
+- Pre-rendered HTML for every route — fully indexable without JavaScript
+- Journey pages at `/route/<from>/<to>` targeting "X to Y bus" searches, with FAQ rich results
+- `sitemap.xml` (all pages) + `robots.txt` generated at build time
+- Google Search Console verification file in `public/`
+- Internal linking: stops ↔ buses ↔ locations ↔ journey pages, popular-area footer links
+- Springy CSS-only micro-interactions; respects `prefers-reduced-motion`
 
 ## How search works
 

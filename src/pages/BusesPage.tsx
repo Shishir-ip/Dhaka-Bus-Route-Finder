@@ -6,12 +6,14 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { StarDisplay } from '../components/StarRating';
 import ConnectionError from '../components/ConnectionError';
 import { fuzzyMatch } from '../utils/fuzzy';
+import { useSEO, listMeta } from '../utils/seo';
 
 export default function BusesPage() {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'name' | 'rating'>('name');
   const { language, t } = useLanguage();
   const { buses, loading, error, configError, getLocationById, getBusRouteSlug } = useData();
+  useSEO(listMeta('buses'));
 
   const filtered = useMemo(() => {
     const active = buses.filter((b) => b.isActive);

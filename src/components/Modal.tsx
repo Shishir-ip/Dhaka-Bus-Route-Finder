@@ -33,7 +33,7 @@ export default function Modal({ title, subtitle, onClose, children, wide = false
     >
       <div
         ref={panelRef}
-        className={`bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} max-h-[90vh] overflow-y-auto fade-in`}
+        className={`bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} max-h-[90vh] overflow-y-auto pop-in`}
       >
         <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-5 py-4 flex items-center justify-between">
           <div>

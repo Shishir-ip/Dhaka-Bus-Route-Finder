@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Bus as BusIcon, Clock, Tag, ArrowLeft, ArrowRight, Wrench, Flag } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
@@ -5,12 +6,19 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { StarDisplay } from '../components/StarRating';
 import RouteTimeline from '../components/RouteTimeline';
 import ConnectionError from '../components/ConnectionError';
+import { useSEO, busMeta } from '../utils/seo';
 
 export default function BusDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { language, t } = useLanguage();
-  const { getBusBySlug, getLocationById, loading, error, configError } = useData();
+  const { buses, locations, getBusBySlug, getLocationById, getLocationSlug, loading, error, configError } = useData();
   const bus = slug ? getBusBySlug(slug) : undefined;
+
+  const meta = useMemo(
+    () => (bus ? busMeta(bus, { buses, locations }) : { title: 'Bus not found — Dhaka Bus Finder', description: '', noindex: true }),
+    [bus, buses, locations]
+  );
+  useSEO(meta);
 
   if (loading || error || configError) return <ConnectionError />;
 
@@ -30,8 +38,19 @@ export default function BusDetailPage() {
   const directionLabel = (d: string) =>
     d === 'up' ? t('bus.directionUp') : d === 'down' ? t('bus.directionDown') : t('bus.directionBoth');
 
+  const firstRoute = bus.routes[0];
+  const journeyFrom = firstRoute?.stops[0] ? getLocationById(firstRoute.stops[0].locationId) : undefined;
+  const journeyTo = firstRoute?.stops[firstRoute.stops.length - 1] ? getLocationById(firstRoute.stops[firstRoute.stops.length - 1].locationId) : undefined;
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+      <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-4" aria-label="Breadcrumb">
+        <Link to="/" className="hover:text-emerald-600 dark:hover:text-emerald-400">{t('nav.home')}</Link>
+        <span>/</span>
+        <Link to="/buses" className="hover:text-emerald-600 dark:hover:text-emerald-400">{t('nav.allBuses')}</Link>
+        <span>/</span>
+        <span className="text-gray-600 dark:text-gray-300 truncate">{bus.nameEn}</span>
+      </nav>
       <Link
         to="/buses"
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 mb-5"
@@ -112,6 +131,18 @@ export default function BusDetailPage() {
           </div>
         </div>
       </div>
+
+      {journeyFrom && journeyTo && journeyFrom.id !== journeyTo.id && (
+        <Link
+          to={`/route/${getLocationSlug(journeyFrom)}/${getLocationSlug(journeyTo)}`}
+          className="flex items-center justify-between gap-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl px-4 py-3 mb-5 hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors press"
+        >
+          <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+            Plan a journey: {journeyFrom.nameEn} → {journeyTo.nameEn}
+          </span>
+          <ArrowRight size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+        </Link>
+      )}
 
       {bus.routes.map((route, idx) => {
         const stops = route.stops.map((s) => s.locationId);

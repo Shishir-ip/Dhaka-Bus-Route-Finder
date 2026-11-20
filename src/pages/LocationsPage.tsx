@@ -5,11 +5,13 @@ import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import ConnectionError from '../components/ConnectionError';
 import { fuzzyMatch } from '../utils/fuzzy';
+import { useSEO, listMeta } from '../utils/seo';
 
 export default function LocationsPage() {
   const [query, setQuery] = useState('');
   const { language, t } = useLanguage();
   const { locations, loading, error, configError, getLocationSlug, getBusesForLocation } = useData();
+  useSEO(listMeta('locations'));
 
   const filtered = useMemo(() => {
     const q = query.trim();

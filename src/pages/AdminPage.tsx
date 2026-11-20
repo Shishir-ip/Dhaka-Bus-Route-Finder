@@ -15,6 +15,7 @@ import { useData } from '../contexts/DataContext';
 import ConnectionError from '../components/ConnectionError';
 import Modal from '../components/Modal';
 import { StarDisplay, StarPicker } from '../components/StarRating';
+import { useSEO } from '../utils/seo';
 
 type Tab = 'dashboard' | 'buses' | 'locations' | 'feedback';
 type Toast = { msg: string; kind: 'success' | 'error' } | null;
@@ -55,6 +56,7 @@ export default function AdminPage() {
 
   const { language, t } = useLanguage();
   const { configError, refetch } = useData();
+  useSEO({ title: 'Admin — Dhaka Bus Finder', description: '', noindex: true });
 
   // Always derive the edited records from the freshest data so the route
   // editor updates immediately after every mutation.

@@ -1,4 +1,5 @@
 import { ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useData } from '../contexts/DataContext';
 
@@ -10,7 +11,7 @@ interface Props {
 
 export default function RouteTimeline({ stops, boardStop, alightStop }: Props) {
   const { language, t } = useLanguage();
-  const { getLocationById } = useData();
+  const { getLocationById, getLocationSlug } = useData();
 
   if (!stops.length) return null;
 
@@ -39,13 +40,20 @@ export default function RouteTimeline({ stops, boardStop, alightStop }: Props) {
               {!isLast && <div className="w-px flex-1 min-h-4 bg-gray-200 dark:bg-gray-700" />}
             </div>
             <div className={`flex items-center gap-2 ${isLast ? 'pb-0' : 'pb-2.5'}`}>
-              <span
-                className={`text-sm ${
-                  highlighted ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'
-                }`}
-              >
-                {name}
-              </span>
+              {loc ? (
+                <Link
+                  to={`/location/${getLocationSlug(loc)}`}
+                  className={`text-sm hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline transition-colors ${
+                    highlighted ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  {name}
+                </Link>
+              ) : (
+                <span className={`text-sm ${highlighted ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>
+                  {name}
+                </span>
+              )}
               {isBoard && (
                 <span className="text-[10px] font-medium bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded">
                   {t('results.board')}

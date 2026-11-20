@@ -43,7 +43,7 @@ export function StarPicker({ value, onChange }: PickerProps) {
             type="button"
             aria-label={`Rate ${i} star${i > 1 ? 's' : ''}`}
             onClick={() => onChange(current === i ? 0 : i)}
-            className="p-0.5 hover:scale-110 transition-transform"
+            className="p-0.5 star-pop transition-transform"
           >
             <Star
               size={24}
