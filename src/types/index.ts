@@ -35,15 +35,6 @@ export interface Bus {
   isActive: boolean;
 }
 
-export interface JourneyResult {
-  type: 'direct' | 'transfer';
-  segments: JourneySegment[];
-  totalTransfers: number;
-  totalStops: number;
-  category?: 'recommended' | 'direct' | 'fewer_stops' | 'alternative';
-  reason?: string;
-}
-
 export interface JourneySegment {
   bus: Bus;
   route: BusRoute;
@@ -51,6 +42,16 @@ export interface JourneySegment {
   alightStop: string;
   stops: string[];
   stopCount: number;
+}
+
+export interface JourneyResult {
+  type: 'direct' | 'transfer';
+  segments: JourneySegment[];
+  totalTransfers: number;
+  totalStops: number;
+  score: number;
+  category?: 'recommended' | 'direct' | 'fewer_stops' | 'alternative';
+  reason?: string;
 }
 
 export type Language = 'en' | 'bn';

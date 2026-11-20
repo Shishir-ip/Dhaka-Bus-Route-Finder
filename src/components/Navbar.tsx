@@ -14,33 +14,30 @@ export default function Navbar() {
     { path: '/', label: t('nav.home') },
     { path: '/buses', label: t('nav.allBuses') },
     { path: '/locations', label: t('nav.locations') },
-    { path: '/feedback', label: language === 'bn' ? 'ফিডব্যাক' : 'Feedback' },
+    { path: '/feedback', label: t('nav.feedback') },
     { path: '/about', label: t('nav.about') },
   ];
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-lg sm:text-xl">
-            <Bus size={22} />
-            <span className="hidden sm:inline">{t('app.title')}</span>
-            <span className="sm:hidden text-base">Bus Finder</span>
+    <nav className="sticky top-0 z-40 bg-white/95 dark:bg-gray-950/95 backdrop-blur border-b border-gray-200 dark:border-gray-800">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-14">
+          <Link to="/" className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
+            <Bus size={20} className="text-emerald-600 dark:text-emerald-400" />
+            <span className="text-sm sm:text-base">{t('app.title')}</span>
           </Link>
 
-          {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
-            {navItems.map(item => (
+            {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                   isActive(item.path)
-                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    ? 'text-emerald-700 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/40'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >
                 {item.label}
@@ -48,67 +45,58 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-1.5">
-            {/* Language Toggle */}
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="Toggle language"
             >
-              <Globe size={16} />
-              <span className="hidden sm:inline text-xs">{language === 'en' ? 'বাংলা' : 'EN'}</span>
+              <Globe size={15} />
+              {language === 'en' ? 'বাংলা' : 'EN'}
             </button>
-
-            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="Toggle theme"
             >
-              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
             </button>
-
-            {/* Mobile Menu Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="Toggle menu"
             >
-              {isOpen ? <X size={20} /> : <Menu size={20} />}
+              {isOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-80' : 'max-h-0'}`}>
-        <div className="px-4 py-3 space-y-1 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-          {navItems.map(item => (
+      {isOpen && (
+        <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-2 fade-in">
+          {navItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
               onClick={() => setIsOpen(false)}
-              className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`block px-3 py-2.5 rounded-lg text-sm ${
                 isActive(item.path)
-                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  ? 'text-emerald-700 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/40'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
               {item.label}
             </Link>
           ))}
-          <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-800">
-            <Link
-              to="/admin"
-              onClick={() => setIsOpen(false)}
-              className="block px-3 py-2 rounded-lg text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              {t('nav.admin')}
-            </Link>
-          </div>
+          <Link
+            to="/admin"
+            onClick={() => setIsOpen(false)}
+            className="block px-3 py-2.5 rounded-lg text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            {t('nav.admin')}
+          </Link>
         </div>
-      </div>
+      )}
     </nav>
   );
 }

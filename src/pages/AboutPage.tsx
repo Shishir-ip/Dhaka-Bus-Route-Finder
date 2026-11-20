@@ -1,56 +1,53 @@
 import { Link } from 'react-router-dom';
-import { Bus, Route, MapPin, ArrowRight } from 'lucide-react';
+import { Bus, Repeat, Star, MapPin } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
 export default function AboutPage() {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
+  const { buses, locations } = useData();
 
   const features = [
-    { icon: Route, key: 'about.feature1' },
-    { icon: ArrowRight, key: 'about.feature2' },
-    { icon: MapPin, key: 'about.feature3' },
-    { icon: Bus, key: 'about.feature4' },
+    { icon: Bus, key: 'about.feature1' },
+    { icon: Repeat, key: 'about.feature2' },
+    { icon: Star, key: 'about.feature3' },
+    { icon: MapPin, key: 'about.feature4' },
   ];
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
-      <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl mb-4">
-          <Bus size={32} className="text-emerald-600 dark:text-emerald-400" />
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3">{t('about.title')}</h1>
+      <p className="text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">{t('about.desc')}</p>
+
+      <div className="grid grid-cols-2 gap-3 mb-8">
+        <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-4 bg-white dark:bg-gray-900 text-center">
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{buses.length}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('buses.count')}</p>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-          {t('about.title')}
-        </h1>
-        <p className="text-lg text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-          {t('about.desc')}
-        </p>
+        <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-4 bg-white dark:bg-gray-900 text-center">
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{locations.length}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('locations.count')}</p>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {features.map((feature, idx) => (
-          <div
-            key={idx}
-            className="flex items-start gap-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5"
-          >
-            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg shrink-0">
-              <feature.icon size={20} className="text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-              {t(feature.key)}
-            </p>
+      <div className="space-y-2.5 mb-8">
+        {features.map((f, i) => (
+          <div key={i} className="flex items-start gap-3 border border-gray-200 dark:border-gray-800 rounded-xl p-4 bg-white dark:bg-gray-900">
+            <f.icon size={17} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-gray-700 dark:text-gray-300">{t(f.key)}</p>
           </div>
         ))}
       </div>
 
-      <div className="mt-10 text-center">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-all shadow-sm hover:shadow-md"
-        >
-          <Bus size={18} />
-          {t('search.findBuses')}
-        </Link>
-      </div>
+      <p className="text-xs text-gray-400 dark:text-gray-500 mb-8">{t('about.dataNote')}</p>
+
+      <Link
+        to="/"
+        className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors"
+      >
+        <Bus size={16} />
+        {t('search.findBuses')}
+      </Link>
     </div>
   );
 }

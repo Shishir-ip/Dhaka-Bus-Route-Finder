@@ -1,7 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
-import { Bus as BusIcon, MapPin, Clock, Tag, ArrowLeft, ArrowRight, Star, ExternalLink, Image as ImageIcon } from 'lucide-react';
+import { Bus as BusIcon, Clock, Tag, ArrowLeft, ArrowRight, Wrench } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { StarDisplay } from '../components/StarRating';
 import RouteTimeline from '../components/RouteTimeline';
 import ConnectionError from '../components/ConnectionError';
 
@@ -11,177 +12,128 @@ export default function BusDetailPage() {
   const { getBusBySlug, getLocationById, loading, error, configError } = useData();
   const bus = slug ? getBusBySlug(slug) : undefined;
 
-  if (loading || error || configError) {
-    return <ConnectionError />;
-  }
+  if (loading || error || configError) return <ConnectionError />;
 
   if (!bus) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 text-center">
-        <BusIcon size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-          {language === 'bn' ? 'বাস পাওয়া যায়নি' : 'Bus not found'}
-        </h1>
-        <Link to="/buses" className="text-emerald-600 dark:text-emerald-400 hover:underline">
-          {language === 'bn' ? 'সকল বাস দেখুন' : 'View all buses'}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
+        <BusIcon size={36} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+        <h1 className="font-semibold text-gray-900 dark:text-white mb-2">{t('bus.notFound')}</h1>
+        <Link to="/buses" className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">
+          {t('bus.viewAll')}
         </Link>
       </div>
     );
   }
 
+  const rating = Number(bus.starRating) || 0;
+  const directionLabel = (d: string) =>
+    d === 'up' ? t('bus.directionUp') : d === 'down' ? t('bus.directionDown') : t('bus.directionBoth');
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      <Link to="/buses" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 mb-6 transition-colors">
-        <ArrowLeft size={16} />
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+      <Link
+        to="/buses"
+        className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 mb-5"
+      >
+        <ArrowLeft size={15} />
         {t('bus.allBuses')}
       </Link>
 
-      {/* Bus Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
-        {/* Bus Image */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-5">
         {bus.imageUrl && (
-          <div className="relative h-48 sm:h-64 bg-gray-100 dark:bg-gray-700">
-            <img
-              src={bus.imageUrl}
-              alt={language === 'bn' ? bus.nameBn : bus.nameEn}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          </div>
+          <img
+            src={bus.imageUrl}
+            alt={bus.nameEn}
+            className="w-full h-44 object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
         )}
-
-        <div className="p-6 sm:p-8">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
-              <BusIcon size={28} className="text-emerald-600 dark:text-emerald-400" />
+        <div className="p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg shrink-0">
+              <BusIcon size={22} className="text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div className="flex-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                 {language === 'bn' ? bus.nameBn : bus.nameEn}
               </h1>
-              <p className="text-gray-500 dark:text-gray-400 mt-1">
-                {language === 'bn' ? bus.nameEn : bus.nameBn}
-              </p>
-
-              {/* Star Rating */}
-              {bus.starRating && bus.starRating > 0 && (
+              <p className="text-sm text-gray-400 mt-0.5">{language === 'bn' ? bus.nameEn : bus.nameBn}</p>
+              {rating > 0 && (
                 <div className="flex items-center gap-2 mt-2">
-                  <div className="flex items-center">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        size={16}
-                        className={star <= Math.round(bus.starRating!) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {bus.starRating.toFixed(1)} ({bus.totalReviews || 0} {language === 'bn' ? 'টি রিভিউ' : 'reviews'})
-                  </span>
+                  <StarDisplay rating={rating} size={15} showValue />
+                  {bus.totalReviews ? (
+                    <span className="text-xs text-gray-400">
+                      ({bus.totalReviews} {t('bus.reviews')})
+                    </span>
+                  ) : null}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Bus Details Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
+          <div className="flex flex-wrap gap-2 mt-5">
             {bus.type && (
-              <div className="flex items-center gap-2 text-sm">
-                <Tag size={16} className="text-gray-400" />
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('bus.type')}</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{bus.type}</p>
-                </div>
-              </div>
-            )}
-            {bus.serviceType && (
-              <div className="flex items-center gap-2 text-sm">
-                <BusIcon size={16} className="text-gray-400" />
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {language === 'bn' ? 'সেবার ধরন' : 'Service Type'}
-                  </p>
-                  <p className="font-medium text-gray-900 dark:text-white">{bus.serviceType}</p>
-                </div>
-              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
+                <Tag size={12} /> {bus.type}
+              </span>
             )}
             {bus.operatingHours && (
-              <div className="flex items-center gap-2 text-sm">
-                <Clock size={16} className="text-gray-400" />
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('bus.hours')}</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{bus.operatingHours}</p>
-                </div>
-              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
+                <Clock size={12} /> {bus.operatingHours}
+              </span>
+            )}
+            {bus.serviceType && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
+                <BusIcon size={12} /> {bus.serviceType}
+              </span>
             )}
             {bus.conditionStatus && (
-              <div className="flex items-center gap-2 text-sm">
-                <div className={`w-2 h-2 rounded-full ${
-                  bus.conditionStatus === 'Good' ? 'bg-emerald-500' :
-                  bus.conditionStatus === 'Not Bad' ? 'bg-amber-500' :
-                  'bg-red-500'
-                }`} />
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {language === 'bn' ? 'অবস্থা' : 'Condition'}
-                  </p>
-                  <p className="font-medium text-gray-900 dark:text-white">{bus.conditionStatus}</p>
-                </div>
-              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
+                <Wrench size={12} /> {bus.conditionStatus}
+              </span>
             )}
           </div>
 
-          {/* Description */}
           {bus.description && (
-            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                {bus.description}
-              </p>
-            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 whitespace-pre-wrap">{bus.description}</p>
           )}
         </div>
       </div>
 
-      {/* Routes */}
-      {bus.routes.map((route, routeIdx) => {
-        const stops = route.stops.map(s => s.locationId);
-        const firstStop = getLocationById(stops[0]);
-        const lastStop = getLocationById(stops[stops.length - 1]);
-
+      {bus.routes.map((route, idx) => {
+        const stops = route.stops.map((s) => s.locationId);
+        if (stops.length === 0) return null;
+        const first = getLocationById(stops[0]);
+        const last = getLocationById(stops[stops.length - 1]);
         return (
-          <div key={route.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 mb-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-              {t('bus.route')} {bus.routes.length > 1 ? `${routeIdx + 1}` : ''}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              {firstStop && lastStop && (
-                <>
-                  {language === 'bn' ? firstStop.nameBn : firstStop.nameEn}
-                  <ArrowRight size={14} className="inline mx-1.5" />
-                  {language === 'bn' ? lastStop.nameBn : lastStop.nameEn}
-                </>
-              )}
-              <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
-                {stops.length} {t('results.stops')}
+          <div key={route.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 sm:p-6 mb-4">
+            <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+              <h2 className="font-semibold text-gray-900 dark:text-white">
+                {t('bus.route')} {bus.routes.length > 1 ? idx + 1 : ''}
+              </h2>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                {directionLabel(route.direction)} · {stops.length} {t('results.stops')}
               </span>
-            </p>
-
+            </div>
+            {first && last && (
+              <p className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                {language === 'bn' ? first.nameBn : first.nameEn}
+                <ArrowRight size={13} />
+                {language === 'bn' ? last.nameBn : last.nameEn}
+              </p>
+            )}
             <RouteTimeline stops={stops} />
           </div>
         );
       })}
 
-      {/* Notes */}
       {bus.notes && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-          <h3 className="font-semibold text-amber-800 dark:text-amber-300 mb-2">
-            {language === 'bn' ? 'বিশেষ নোট' : 'Special Notes'}
-          </h3>
-          <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">
-            {bus.notes}
-          </p>
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">{t('bus.notes')}</h3>
+          <p className="text-sm text-amber-700 dark:text-amber-300 whitespace-pre-wrap">{bus.notes}</p>
         </div>
       )}
     </div>
