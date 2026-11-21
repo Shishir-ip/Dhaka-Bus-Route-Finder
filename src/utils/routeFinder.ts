@@ -1,10 +1,10 @@
 import type { Bus, BusRoute, JourneyResult, JourneySegment } from '../types';
 
 // ---------- Tuning ----------
-const MAX_RESULTS = 12;
+const MAX_RESULTS = 12; // cap when there are no direct buses
+const MAX_TRANSFER_RESULTS = 6; // transfer combos shown alongside direct buses
 const TRANSFER_PENALTY = 8; // extra cost per transfer (in "stop equivalents")
 const STAR_BONUS = 1.2; // cost reduction per star of the buses used
-const DIRECT_SLOTS = 3; // best direct buses always kept in the results
 const ONE_TRANSFER_CAP = 400;
 const TWO_TRANSFER_CAP = 300;
 const TIME_BUDGET_MS = 1500;
@@ -31,6 +31,30 @@ function canTravel(route: BusRoute, fromIdx: number, toIdx: number): boolean {
   if (route.direction === 'up') return fromIdx < toIdx;
   if (route.direction === 'down') return fromIdx > toIdx;
   return false;
+}
+
+/**
+ * Best board/alight pair for a route. Loop routes can visit the same stop
+ * twice; indexOf would lock onto the first occurrence and overcount stops
+ * (or miss a valid direction). Scan every occurrence pair and keep the
+ * shortest ride that is actually travelable.
+ */
+function bestPair(info: RouteInfo, fromId: string, toId: string): { fromIdx: number; toIdx: number } | null {
+  const { stops, route } = info;
+  let best: { fromIdx: number; toIdx: number } | null = null;
+  let bestDist = Infinity;
+  for (let a = 0; a < stops.length; a++) {
+    if (stops[a] !== fromId) continue;
+    for (let b = 0; b < stops.length; b++) {
+      if (stops[b] !== toId || !canTravel(route, a, b)) continue;
+      const dist = Math.abs(a - b);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { fromIdx: a, toIdx: b };
+      }
+    }
+  }
+  return best;
 }
 
 function makeSegment(info: RouteInfo, fromIdx: number, toIdx: number): JourneySegment {
@@ -135,22 +159,30 @@ export function findRoutes(fromId: string, toId: string, buses: Bus[]): JourneyR
     candidates.push(j);
   };
 
-  // ----- Direct -----
+  // ----- Direct: every bus that serves both stops, best variant per bus -----
+  const directByBus = new Map<string, JourneyResult>();
   for (const info of originRoutes) {
-    const a = info.stops.indexOf(fromId);
-    const b = info.stops.indexOf(toId);
-    if (canTravel(info.route, a, b)) push(makeJourney([{ info, fromIdx: a, toIdx: b }]));
+    const pair = bestPair(info, fromId, toId);
+    if (!pair) continue;
+    const j = makeJourney([{ info, fromIdx: pair.fromIdx, toIdx: pair.toIdx }]);
+    const prev = directByBus.get(info.bus.id);
+    if (!prev || j.score < prev.score) directByBus.set(info.bus.id, j);
   }
+  for (const j of directByBus.values()) push(j);
 
   // ----- Last-leg index: location -> best routes that reach the destination -----
   const destRoutes = new Map<string, Leg[]>();
   for (const [loc, infos] of index) {
     if (loc === toId || loc === fromId) continue;
     const legs: Leg[] = [];
+    const usedBuses = new Set<string>();
     for (const info of infos) {
-      const a = info.stops.indexOf(loc);
-      const b = info.stops.indexOf(toId);
-      if (canTravel(info.route, a, b)) legs.push({ info, fromIdx: a, toIdx: b });
+      if (usedBuses.has(info.bus.id)) continue;
+      const pair = bestPair(info, loc, toId);
+      if (pair) {
+        legs.push({ info, fromIdx: pair.fromIdx, toIdx: pair.toIdx });
+        usedBuses.add(info.bus.id);
+      }
     }
     if (legs.length) {
       legs.sort((x, y) => Math.abs(x.toIdx - x.fromIdx) - Math.abs(y.toIdx - y.fromIdx));
@@ -236,22 +268,12 @@ export function findRoutes(fromId: string, toId: string, buses: Bus[]): JourneyR
 
   trimmed.sort((a, b) => a.score - b.score || a.totalStops - b.totalStops || a.totalTransfers - b.totalTransfers);
 
-  // Take the best-scored journeys, but always keep the best direct buses
-  // visible — riders expect to see direct options even when a transfer
-  // happens to be shorter.
-  const results = trimmed.slice(0, MAX_RESULTS);
-  const included = new Set(results.map(journeyKey));
-  const bestDirects = trimmed.filter((j) => j.totalTransfers === 0).slice(0, DIRECT_SLOTS);
-  for (const d of bestDirects) {
-    if (included.has(journeyKey(d))) continue;
-    for (let i = results.length - 1; i >= 0; i--) {
-      if (results[i].totalTransfers > 0) {
-        results[i] = d;
-        included.add(journeyKey(d));
-        break;
-      }
-    }
-  }
+  // Never hide a direct bus: riders expect to see every bus that serves
+  // both stops. Only transfer combinations are capped.
+  const directs = trimmed.filter((j) => j.totalTransfers === 0);
+  const transfers = trimmed.filter((j) => j.totalTransfers > 0);
+  const transferSlots = directs.length > 0 ? MAX_TRANSFER_RESULTS : MAX_RESULTS;
+  const results = [...directs, ...transfers.slice(0, transferSlots)];
   results.sort((a, b) => a.score - b.score || a.totalStops - b.totalStops || a.totalTransfers - b.totalTransfers);
 
   const bestDirectStops = results.filter((j) => j.totalTransfers === 0).reduce((m, j) => Math.min(m, j.totalStops), Infinity);
