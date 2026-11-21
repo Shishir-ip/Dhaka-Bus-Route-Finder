@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { track } from '@vercel/analytics';
 import { ArrowRightLeft, Search, Bus, Repeat, Star, MapPin, TrainFront } from 'lucide-react';
 import type { Location, JourneyResult } from '../types';
 import LocationAutocomplete from '../components/LocationAutocomplete';
@@ -45,7 +46,9 @@ export default function HomePage() {
     // Yield a frame so the spinner paints before the synchronous search.
     setTimeout(() => {
       try {
-        setResults(findRoutes(a.id, b.id, searchBuses));
+        const found = findRoutes(a.id, b.id, searchBuses);
+        setResults(found);
+        track('search', { from: a.nameEn, to: b.nameEn, mode, results: found.length });
       } catch (err) {
         console.error('Search failed:', err);
         setResults([]);
@@ -165,7 +168,7 @@ export default function HomePage() {
             <div className="flex items-center justify-center gap-1 mt-3">
               <button
                 type="button"
-                onClick={() => setMode('all')}
+                onClick={() => { setMode('all'); track('mode_toggle', { mode: 'all' }); }}
                 className={`press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
                   mode === 'all'
                     ? 'bg-emerald-600 text-white'
@@ -177,7 +180,7 @@ export default function HomePage() {
               </button>
               <button
                 type="button"
-                onClick={() => setMode('bus')}
+                onClick={() => { setMode('bus'); track('mode_toggle', { mode: 'bus' }); }}
                 className={`press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
                   mode === 'bus'
                     ? 'bg-emerald-600 text-white'

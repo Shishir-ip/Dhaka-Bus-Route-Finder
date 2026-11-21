@@ -1,5 +1,6 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, Link } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { DataProvider, useData, GraphData } from './contexts/DataContext';
@@ -73,6 +74,7 @@ export function AppContent({ initialData }: { initialData?: GraphData }) {
         <DataProvider initialData={initialData}>
           <ScrollToTop />
           <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+            <Analytics />
             <Navbar />
             <main className="flex-1">
               <ErrorBoundary>
