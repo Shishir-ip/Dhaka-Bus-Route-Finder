@@ -9,9 +9,10 @@ import RouteTimeline from './RouteTimeline';
 
 interface Props {
   result: JourneyResult;
+  delayMs?: number;
 }
 
-export default function JourneyCard({ result }: Props) {
+export default function JourneyCard({ result, delayMs = 0 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const { language, t } = useLanguage();
   const { getLocationById, getBusRouteSlug } = useData();
@@ -42,6 +43,7 @@ export default function JourneyCard({ result }: Props) {
 
   return (
     <div
+      style={delayMs ? { animationDelay: `${delayMs}ms` } : undefined}
       className={`bg-white dark:bg-gray-900 rounded-xl border overflow-hidden pop-in card-lift ${
         category === 'recommended' ? 'border-emerald-300 dark:border-emerald-800' : 'border-gray-200 dark:border-gray-800'
       }`}

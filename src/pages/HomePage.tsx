@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { track } from '@vercel/analytics';
 import { ArrowRightLeft, Search, Bus, Repeat, Star, MapPin, TrainFront } from 'lucide-react';
@@ -17,6 +17,9 @@ export default function HomePage() {
   const [results, setResults] = useState<JourneyResult[]>([]);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Bumped on every search: replays the results entrance animation and scrolls them into view.
+  const [searchId, setSearchId] = useState(0);
+  const resultsRef = useRef<HTMLElement>(null);
   const [mode, setMode] = useState<'all' | 'bus'>(() =>
     typeof window !== 'undefined' && localStorage.getItem('dbf-mode') === 'bus' ? 'bus' : 'all'
   );
@@ -38,6 +41,7 @@ export default function HomePage() {
   const runSearch = (a: Location | null, b: Location | null) => {
     if (!a || !b) return;
     setSearched(true);
+    setSearchId((n) => n + 1);
     if (a.id === b.id) {
       setResults([]);
       return;
@@ -57,6 +61,21 @@ export default function HomePage() {
       }
     }, 30);
   };
+
+  // Users often miss that results rendered below the hero — glide them into
+  // view once the results land (works the same on phone and desktop).
+  useEffect(() => {
+    if (!searchId || loading) return;
+    const el = resultsRef.current;
+    if (!el) return;
+    const NAV_HEIGHT = 56; // sticky navbar is h-14
+    const top = el.getBoundingClientRect().top;
+    // Already comfortably on screen? Don't yank the page.
+    if (top > NAV_HEIGHT + 12 && top < window.innerHeight * 0.55) return;
+    const target = top + window.scrollY - NAV_HEIGHT - 12;
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: Math.max(0, target), behavior: smooth ? 'smooth' : 'auto' });
+  }, [searchId, loading]);
 
   // Re-rank live when the user switches Bus + Metro / Bus only.
   useEffect(() => {
@@ -214,13 +233,13 @@ export default function HomePage() {
 
       {/* Results */}
       {searched && (
-        <section className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        <section ref={resultsRef} className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
           {sameLocation ? (
             <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
               {t('search.sameLocation')}
             </p>
           ) : (
-            <>
+            <div key={searchId}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold text-gray-900 dark:text-white">{t('results.title')}</h2>
                 {!loading && (
@@ -246,11 +265,11 @@ export default function HomePage() {
               ) : (
                 <div className="space-y-3">
                   {results.map((result, idx) => (
-                    <JourneyCard key={idx} result={result} />
+                    <JourneyCard key={idx} result={result} delayMs={Math.min(idx, 8) * 70} />
                   ))}
                 </div>
               )}
-            </>
+            </div>
           )}
         </section>
       )}
