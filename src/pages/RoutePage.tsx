@@ -103,9 +103,17 @@ export default function RoutePage() {
         </div>
       ) : (
         <section className="space-y-3 mb-8" aria-label="Journey options">
-          {results.map((result, idx) => (
+          {results.slice(0, 15).map((result, idx) => (
             <JourneyCard key={idx} result={result} />
           ))}
+          {results.length > 15 && (
+            <Link
+              to={`/?from=${fromSlug}&to=${toSlug}`}
+              className="press block text-center text-sm font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl py-3 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 transition-colors"
+            >
+              View all {results.length} journey options →
+            </Link>
+          )}
         </section>
       )}
 

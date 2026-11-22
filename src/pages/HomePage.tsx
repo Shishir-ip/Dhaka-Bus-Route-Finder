@@ -19,12 +19,15 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   // Bumped on every search: replays the results entrance animation and scrolls them into view.
   const [searchId, setSearchId] = useState(0);
+  // Busy pairs can yield 1000+ valid combinations; render in batches so
+  // phones stay smooth. Nothing is hidden — "Show more" reveals the rest.
+  const [visibleCount, setVisibleCount] = useState(30);
   const resultsRef = useRef<HTMLElement>(null);
   const [mode, setMode] = useState<'all' | 'bus'>(() =>
     typeof window !== 'undefined' && localStorage.getItem('dbf-mode') === 'bus' ? 'bus' : 'all'
   );
   const { t, language } = useLanguage();
-  const { buses, locations, loading: dataLoading, error, configError, getBusesForLocation, getLocationSlug } = useData();
+  const { buses, locations, loading: dataLoading, error, configError, getBusesForLocation, getLocationSlug, getLocationBySlug } = useData();
 
   useSEO(homeMeta());
 
@@ -42,6 +45,7 @@ export default function HomePage() {
     if (!a || !b) return;
     setSearched(true);
     setSearchId((n) => n + 1);
+    setVisibleCount(30);
     if (a.id === b.id) {
       setResults([]);
       return;
@@ -61,6 +65,25 @@ export default function HomePage() {
       }
     }, 30);
   };
+
+  // Shareable search links: /?from=mirpur-14&to=kuril-bishwa-road opens with
+  // results already loaded (used by the journey pages' "view all" button).
+  const autoSearched = useRef(false);
+  useEffect(() => {
+    if (autoSearched.current || dataLoading || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const f = params.get('from');
+    const t = params.get('to');
+    if (!f || !t) return;
+    const a = getLocationBySlug(f);
+    const b = getLocationBySlug(t);
+    if (!a || !b) return;
+    autoSearched.current = true;
+    setFrom(a);
+    setTo(b);
+    runSearch(a, b);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataLoading]);
 
   // Users often miss that results rendered below the hero — glide them into
   // view once the results land (works the same on phone and desktop).
@@ -264,9 +287,20 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {results.map((result, idx) => (
+                  {results.slice(0, visibleCount).map((result, idx) => (
                     <JourneyCard key={idx} result={result} delayMs={Math.min(idx, 8) * 70} />
                   ))}
+                  {results.length > visibleCount && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount((c) => c + 60)}
+                      className="press w-full text-sm font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl py-3 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 transition-colors"
+                    >
+                      {language === 'bn'
+                        ? `আরও দেখুন — ${results.length - visibleCount}টি অপশন বাকি (মোট ${results.length})`
+                        : `Show more — ${results.length - visibleCount} more options (${results.length} total)`}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
