@@ -8,6 +8,7 @@ import {
   supabase, fetchStats, fetchAdminData, fetchFeedback, updateFeedbackStatus, deleteFeedback,
   createBus, updateBus, deleteBus, createLocation, updateLocation, deleteLocation,
   createRoute, deleteRoute, addRouteStop, deleteRouteStop, updateRouteStopOrder,
+  getAppSetting, setAppSetting, triggerSeoRebuild,
   DBBus, DBLocation, DBFeedback,
 } from '../lib/supabase';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -16,6 +17,7 @@ import ConnectionError from '../components/ConnectionError';
 import Modal from '../components/Modal';
 import { StarDisplay, StarPicker } from '../components/StarRating';
 import { useSEO } from '../utils/seo';
+import { fuzzyMatch } from '../utils/fuzzy';
 
 type Tab = 'dashboard' | 'buses' | 'locations' | 'feedback';
 type Toast = { msg: string; kind: 'success' | 'error' } | null;
@@ -53,6 +55,8 @@ export default function AdminPage() {
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  const [deployHook, setDeployHook] = useState('');
+  const [hookSaving, setHookSaving] = useState(false);
 
   const { language, t } = useLanguage();
   const { configError, refetch } = useData();
@@ -104,10 +108,84 @@ export default function AdminPage() {
     if (user) loadAllData();
   }, [user, loadAllData]);
 
-  const reload = useCallback(async () => {
+  useEffect(() => {
+    if (!user) return;
+    getAppSetting('vercel_deploy_hook')
+      .then((v) => setDeployHook(v ?? ''))
+      .catch(() => { /* app_settings table not created yet (run 04 SQL) */ });
+  }, [user]);
+
+  const reload = useCallback(async (afterMutation = true) => {
     await loadAllData();
     refetch();
-  }, [loadAllData, refetch]);
+    if (afterMutation) {
+      const triggered = await triggerSeoRebuild();
+      if (triggered) {
+        notify(language === 'bn' ? 'SEO পেজ রিবিল্ড শুরু হয়েছে (Vercel)' : 'SEO pages rebuild triggered on Vercel');
+      }
+    }
+  }, [loadAllData, refetch, notify, language]);
+
+  const saveDeployHook = async () => {
+    setHookSaving(true);
+    try {
+      await setAppSetting('vercel_deploy_hook', deployHook.trim());
+      notify(language === 'bn' ? 'Deploy hook সংরক্ষিত' : 'Deploy hook saved');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Failed to save hook', 'error');
+    } finally {
+      setHookSaving(false);
+    }
+  };
+
+  // ----- Paste-a-route: build a whole stop list from "A ⇄ B ⇄ C" text -----
+  const handlePasteRoute = async (routeId: string, names: string[], replace: boolean) => {
+    const current = buses.find((b) => b.routes?.some((r) => r.id === routeId));
+    const route = current?.routes?.find((r) => r.id === routeId);
+    const existing = [...(route?.stops ?? [])].sort((a, b) => a.stop_order - b.stop_order);
+    const byName = new Map<string, DBLocation>();
+    for (const l of locations) {
+      byName.set(l.name_en.toLowerCase(), l);
+      if (l.name_bn) byName.set(l.name_bn.toLowerCase(), l);
+      for (const a of l.aliases || []) byName.set(a.toLowerCase(), l);
+    }
+    const createdNames: string[] = [];
+    const resolvedIds: string[] = [];
+    for (const raw of names) {
+      const name = raw.trim();
+      if (!name) continue;
+      let loc = byName.get(name.toLowerCase());
+      if (!loc) {
+        let best: DBLocation | undefined;
+        let bestScore = 0;
+        for (const l of locations) {
+          const s = Math.max(fuzzyMatch(name, l.name_en), fuzzyMatch(name, l.name_bn || '') * 0.9);
+          if (s > bestScore) { bestScore = s; best = l; }
+        }
+        if (best && bestScore >= 80) loc = best;
+      }
+      if (!loc) {
+        loc = await createLocation({ name_en: name, name_bn: null, aliases: [], is_active: true });
+        byName.set(name.toLowerCase(), loc);
+        createdNames.push(name);
+      }
+      resolvedIds.push(loc.id);
+    }
+    if (resolvedIds.length < 2) throw new Error('Paste at least 2 stop names');
+    if (replace) {
+      for (const s of existing) await deleteRouteStop(s.id);
+    }
+    const startOrder = replace ? 1 : existing.length ? Math.max(...existing.map((s) => s.stop_order)) + 1 : 1;
+    for (let i = 0; i < resolvedIds.length; i++) {
+      await addRouteStop(routeId, resolvedIds[i], startOrder + i);
+    }
+    notify(
+      language === 'bn'
+        ? `${resolvedIds.length}টি স্টপ যোগ হয়েছে${createdNames.length ? ` · নতুন স্থান: ${createdNames.join(', ')}` : ''}`
+        : `${resolvedIds.length} stops added${createdNames.length ? ` · new locations: ${createdNames.join(', ')}` : ''}`
+    );
+    await reload();
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,7 +375,7 @@ export default function AdminPage() {
           <p className="text-xs text-gray-400 truncate">{user.email}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => reload()} className={btnGhost} disabled={dataLoading}>
+          <button onClick={() => reload(false)} className={btnGhost} disabled={dataLoading}>
             <RefreshCw size={14} className={dataLoading ? 'animate-spin' : ''} />
             <span className="hidden sm:inline">{language === 'bn' ? 'রিফ্রেশ' : 'Refresh'}</span>
           </button>
@@ -334,19 +412,44 @@ export default function AdminPage() {
 
       {/* Dashboard */}
       {activeTab === 'dashboard' && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { label: language === 'bn' ? 'মোট বাস' : 'Buses', value: stats.totalBuses, icon: Bus },
-            { label: language === 'bn' ? 'মোট স্থান' : 'Locations', value: stats.totalLocations, icon: MapPin },
-            { label: language === 'bn' ? 'মোট রুট' : 'Routes', value: stats.totalRoutes, icon: Route },
-            { label: language === 'bn' ? 'মোট স্টপ' : 'Stops', value: stats.totalStops, icon: MapPin },
-          ].map((s, i) => (
-            <div key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
-              <s.icon size={16} className="text-emerald-600 dark:text-emerald-400 mb-2" />
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{s.value}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: language === 'bn' ? 'মোট বাস' : 'Buses', value: stats.totalBuses, icon: Bus },
+              { label: language === 'bn' ? 'মোট স্থান' : 'Locations', value: stats.totalLocations, icon: MapPin },
+              { label: language === 'bn' ? 'মোট রুট' : 'Routes', value: stats.totalRoutes, icon: Route },
+              { label: language === 'bn' ? 'মোট স্টপ' : 'Stops', value: stats.totalStops, icon: MapPin },
+            ].map((s, i) => (
+              <div key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+                <s.icon size={16} className="text-emerald-600 dark:text-emerald-400 mb-2" />
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{s.value}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+              {language === 'bn' ? 'SEO অটো-রিবিল্ড (Vercel deploy hook)' : 'SEO auto-rebuild (Vercel deploy hook)'}
+            </h3>
+            <p className="text-xs text-gray-400 mb-3 leading-relaxed">
+              {language === 'bn'
+                ? 'Vercel → Settings → Git → Deploy Hooks-এ একটি hook তৈরি করে URL এখানে পেস্ট করুন। ডেটা পরিবর্তনের পর SEO পেজগুলো নিজে থেকেই রিবিল্ড হবে।'
+                : 'Create a hook in Vercel → Settings → Git → Deploy Hooks and paste its URL here. After every data change, the pre-rendered SEO pages rebuild automatically.'}
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={deployHook}
+                onChange={(e) => setDeployHook(e.target.value)}
+                placeholder="https://api.vercel.com/v1/integrations/deploy/…"
+                className={inputClass}
+              />
+              <button onClick={saveDeployHook} disabled={hookSaving} className={`${btnPrimary} shrink-0`}>
+                {hookSaving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={14} />}
+                {t('common.save')}
+              </button>
             </div>
-          ))}
+          </div>
         </div>
       )}
 
@@ -546,6 +649,7 @@ export default function AdminPage() {
           onAddStop={handleAddStop}
           onDeleteStop={handleDeleteStop}
           onReorderStops={handleReorderStops}
+          onPasteRoute={handlePasteRoute}
         />
       )}
       {showLocationForm && (
@@ -697,7 +801,7 @@ function BusForm({ bus, onSave, onCancel }: {
 }
 
 // ================= Route editor =================
-function RouteEditor({ bus, locations, onClose, onCreateRoute, onDeleteRoute, onAddStop, onDeleteStop, onReorderStops }: {
+function RouteEditor({ bus, locations, onClose, onCreateRoute, onDeleteRoute, onAddStop, onDeleteStop, onReorderStops, onPasteRoute }: {
   bus: DBBus;
   locations: DBLocation[];
   onClose: () => void;
@@ -706,6 +810,7 @@ function RouteEditor({ bus, locations, onClose, onCreateRoute, onDeleteRoute, on
   onAddStop: (routeId: string, locationId: string, order: number) => Promise<void>;
   onDeleteStop: (stopId: string) => Promise<void>;
   onReorderStops: (stops: { id: string; order: number }[]) => Promise<void>;
+  onPasteRoute: (routeId: string, names: string[], replace: boolean) => Promise<void>;
 }) {
   const routes = bus.routes || [];
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(routes[0]?.id ?? null);
@@ -713,6 +818,9 @@ function RouteEditor({ bus, locations, onClose, onCreateRoute, onDeleteRoute, on
   const [stopQuery, setStopQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [pasteReplace, setPasteReplace] = useState(true);
   const { language, t } = useLanguage();
 
   const selectedRoute = routes.find((r) => r.id === selectedRouteId) ?? routes[0] ?? null;
@@ -850,6 +958,62 @@ function RouteEditor({ bus, locations, onClose, onCreateRoute, onDeleteRoute, on
               </button>
             </div>
 
+            {/* Paste-a-route: build the whole stop list from bus.txt-style text */}
+            <div className="mb-3 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-3">
+              <button
+                type="button"
+                onClick={() => setShowPaste((v) => !v)}
+                className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+              >
+                {showPaste
+                  ? language === 'bn' ? 'পেস্ট বন্ধ করুন' : 'Close paste'
+                  : language === 'bn' ? 'একসাথে পুরো রুট পেস্ট করুন (⇄ দিয়ে)' : 'Paste a whole route at once (⇄ separated)'}
+              </button>
+              {showPaste && (
+                <div className="mt-2 space-y-2">
+                  <textarea
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                    rows={3}
+                    placeholder={'Gabtoli ⇄ Technical ⇄ Mirpur 1 ⇄ Mirpur 10 ⇄ …'}
+                    className={`${inputClass} resize-none font-mono text-xs`}
+                  />
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      <input
+                        type="checkbox"
+                        checked={pasteReplace}
+                        onChange={(e) => setPasteReplace(e.target.checked)}
+                        className="w-3.5 h-3.5 accent-emerald-600"
+                      />
+                      {language === 'bn' ? 'আগের স্টপ মুছে প্রতিস্থাপন' : 'Replace existing stops'}
+                    </label>
+                    <button
+                      type="button"
+                      disabled={busy || !pasteText.trim()}
+                      onClick={() => {
+                        const names = pasteText.split(/⇄|→|->|,|\n/).map((s) => s.trim()).filter(Boolean);
+                        run(async () => {
+                          await onPasteRoute(selectedRoute.id, names, pasteReplace);
+                          setPasteText('');
+                          setShowPaste(false);
+                        });
+                      }}
+                      className={btnPrimary}
+                    >
+                      {busy ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Plus size={14} />}
+                      {language === 'bn' ? 'রুট তৈরি করুন' : 'Build stops'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400">
+                    {language === 'bn'
+                      ? 'অচেনা নামগুলো নতুন স্থান হিসেবে যোগ হবে; কাছাকাছি বানান (টাইপো) নিজে থেকেই মিলে যাবে।'
+                      : 'Unknown names become new locations; close spellings match existing stops automatically.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
             {sortedStops.length === 0 ? (
               <p className="text-sm text-gray-400">{language === 'bn' ? 'কোনো স্টপ নেই।' : 'No stops yet.'}</p>
             ) : (
@@ -901,6 +1065,8 @@ function LocationForm({ location, onSave, onCancel }: {
     name_bn: location?.name_bn ?? '',
     aliases: (location?.aliases ?? []).join(', '),
     google_maps_url: location?.google_maps_url ?? '',
+    lat: location?.lat != null ? String(location.lat) : '',
+    lng: location?.lng != null ? String(location.lng) : '',
     is_active: location?.is_active ?? true,
   }));
   const [saving, setSaving] = useState(false);
@@ -917,6 +1083,8 @@ function LocationForm({ location, onSave, onCancel }: {
         name_bn: form.name_bn,
         aliases: form.aliases.split(',').map((s) => s.trim()).filter(Boolean),
         google_maps_url: form.google_maps_url,
+        lat: form.lat.trim() === '' ? null : Number(form.lat),
+        lng: form.lng.trim() === '' ? null : Number(form.lng),
         is_active: form.is_active,
       });
     } catch (err) {
@@ -946,6 +1114,16 @@ function LocationForm({ location, onSave, onCancel }: {
         <div>
           <label className={labelClass}>Google Maps URL</label>
           <input type="url" value={form.google_maps_url} onChange={(e) => setForm({ ...form, google_maps_url: e.target.value })} placeholder="https://maps.google.com/…" className={inputClass} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>{language === 'bn' ? 'অক্ষাংশ (Latitude)' : 'Latitude'}</label>
+            <input value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} placeholder="23.8069" inputMode="decimal" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>{language === 'bn' ? 'দ্রাঘিমাংশ (Longitude)' : 'Longitude'}</label>
+            <input value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })} placeholder="90.3687" inputMode="decimal" className={inputClass} />
+          </div>
         </div>
         <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 accent-emerald-600" />

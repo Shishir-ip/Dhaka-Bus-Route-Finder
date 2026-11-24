@@ -55,6 +55,8 @@ function toAppTypes({ locations, buses }) {
     nameBn: l.name_bn || l.name_en,
     aliases: l.aliases || [],
     googleMapsUrl: l.google_maps_url || undefined,
+    lat: l.lat != null ? Number(l.lat) : undefined,
+    lng: l.lng != null ? Number(l.lng) : undefined,
   }));
   const appBuses = buses.map((b) => ({
     id: b.id,
@@ -167,6 +169,16 @@ for (const url of urls) {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, out);
   written++;
+}
+
+// Styled 404 page — Vercel serves this with a real 404 status for URLs that
+// match no pre-rendered page and no SPA route pattern (see vercel.json).
+{
+  const { html, head } = render('/404', data);
+  const out = template
+    .replace('</head>', `    ${head}\n  </head>`)
+    .replace('<div id="root"></div>', `<div id="root">${html}</div>`);
+  writeFileSync(join(dist, '404.html'), out);
 }
 
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>

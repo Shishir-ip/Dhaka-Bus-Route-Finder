@@ -47,6 +47,8 @@ function convertLocation(db: DBLocation): Location {
     nameBn: db.name_bn || db.name_en,
     aliases: db.aliases || [],
     googleMapsUrl: db.google_maps_url || undefined,
+    lat: db.lat != null ? Number(db.lat) : undefined,
+    lng: db.lng != null ? Number(db.lng) : undefined,
   };
 }
 

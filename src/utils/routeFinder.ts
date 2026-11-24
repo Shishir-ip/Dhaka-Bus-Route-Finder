@@ -274,6 +274,22 @@ export function findRoutes(fromId: string, toId: string, buses: Bus[]): JourneyR
   }
   const trimmed = [...bySequence.values()];
 
+  // Detour penalty: a transfer journey that rides far more stops than the
+  // best direct bus (or the best journey overall) is a detour, not a real
+  // alternative. Keep it listed — riders asked for every option — but sink
+  // it below sensible choices instead of letting it clutter the top.
+  const bestDirectStops = trimmed
+    .filter((j) => j.totalTransfers === 0)
+    .reduce((m, j) => Math.min(m, j.totalStops), Infinity);
+  const baseline = bestDirectStops !== Infinity
+    ? bestDirectStops
+    : trimmed.reduce((m, j) => Math.min(m, j.totalStops), Infinity);
+  for (const j of trimmed) {
+    if (j.totalTransfers > 0 && j.totalStops > baseline) {
+      j.score += (j.totalStops - baseline) * 0.5;
+    }
+  }
+
   trimmed.sort((a, b) => a.score - b.score || a.totalStops - b.totalStops || a.totalTransfers - b.totalTransfers);
 
   // Show every direct bus AND every 1-transfer bus combination — riders
@@ -284,8 +300,6 @@ export function findRoutes(fromId: string, toId: string, buses: Bus[]): JourneyR
   const twoTransfers = trimmed.filter((j) => j.totalTransfers === 2);
   const results = [...directs, ...oneTransfers, ...twoTransfers.slice(0, MAX_RESULTS)];
   results.sort((a, b) => a.score - b.score || a.totalStops - b.totalStops || a.totalTransfers - b.totalTransfers);
-
-  const bestDirectStops = results.filter((j) => j.totalTransfers === 0).reduce((m, j) => Math.min(m, j.totalStops), Infinity);
 
   results.forEach((j, i) => {
     if (i === 0) {

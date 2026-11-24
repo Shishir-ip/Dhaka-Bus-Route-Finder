@@ -103,10 +103,10 @@ export default function RoutePage() {
         </div>
       ) : (
         <section className="space-y-3 mb-8" aria-label="Journey options">
-          {results.slice(0, 15).map((result, idx) => (
+          {results.slice(0, 10).map((result, idx) => (
             <JourneyCard key={idx} result={result} />
           ))}
-          {results.length > 15 && (
+          {results.length > 10 && (
             <Link
               to={`/?from=${fromSlug}&to=${toSlug}`}
               className="press block text-center text-sm font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl py-3 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 transition-colors"
@@ -116,6 +116,36 @@ export default function RoutePage() {
           )}
         </section>
       )}
+
+      {/* Bangla content — real answers for Bangla search queries */}
+      <section className="mb-8" lang="bn">
+        <h2 className="font-semibold text-gray-900 dark:text-white mb-2">
+          {from.nameBn} থেকে {to.nameBn} বাস ও মেট্রো রুট
+        </h2>
+        <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed space-y-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-900 p-4">
+          {directs.length > 0 ? (
+            <p>
+              {from.nameBn} থেকে {to.nameBn} যাওয়ার সরাসরি বাস: {directs.slice(0, 8).map((r) => r.segments[0].bus.nameBn).join(', ')}
+              {directs.length > 8 ? ` সহ মোট ${directs.length}টি বাস` : ''}। কোনো ট্রান্সফার লাগবে না।
+            </p>
+          ) : best ? (
+            <p>
+              {from.nameBn} থেকে {to.nameBn} সরাসরি বাস নেই। সবচেয়ে ভালো উপায়: {best.segments.map((s) => s.bus.nameBn).join(', তারপর ')}
+              {' '}— মোট {best.totalStops} স্টপ, {best.totalTransfers} বার বাস বদলাতে হবে।
+            </p>
+          ) : (
+            <p>এই দুই স্থানের মধ্যে এখনো কোনো বাস রুট আমাদের ডাটাবেসে নেই। কাছের বড় স্টপ থেকে সার্চ করে দেখুন।</p>
+          )}
+          {hasMetro && (
+            <p>
+              মেট্রোরেল (এমআরটি লাইন ৬) এই যাত্রায় ব্যবহার করা যায় — উত্তরা থেকে মতিঝিল পর্যন্ত ১৬টি স্টেশন, ভাড়া ৳২০–১০০, প্রতি ৫–১০ মিনিটে ট্রেন।
+            </p>
+          )}
+          {best && (
+            <p>সবচেয়ে দ্রুত যাত্রায় আনুমানিক {estimateMinutes(best)} মিনিট লাগে (ঢাকার যানজটের ওপর সময় কম-বেশি হতে পারে)।</p>
+          )}
+        </div>
+      </section>
 
       {/* FAQ — visible content matching the FAQPage structured data */}
       {faqs.length > 0 && (

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bus as BusIcon, ArrowRight, ChevronDown, ChevronUp, Repeat, TrainFront } from 'lucide-react';
+import { Bus as BusIcon, ArrowRight, ChevronDown, ChevronUp, Repeat, TrainFront, Clock } from 'lucide-react';
 import type { JourneyResult } from '../types';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { StarDisplay } from './StarRating';
 import RouteTimeline from './RouteTimeline';
+import { estimateMinutes, estimateFare } from '../utils/seo';
+import { minutesUntilClose, formatMinutes, parseOperatingHours } from '../utils/hours';
 
 interface Props {
   result: JourneyResult;
@@ -22,6 +24,20 @@ export default function JourneyCard({ result, delayMs = 0 }: Props) {
     return loc ? (language === 'bn' ? loc.nameBn : loc.nameEn) : id;
   };
   const busName = (bus: { nameEn: string; nameBn: string }) => (language === 'bn' ? bus.nameBn : bus.nameEn);
+
+  // Warn when the earliest-ending service on this journey stops soon.
+  let lastBusWarning: string | null = null;
+  for (const seg of result.segments) {
+    const left = minutesUntilClose(seg.bus);
+    if (left !== null && left <= 60) {
+      const parsed = parseOperatingHours(seg.bus.operatingHours)!;
+      lastBusWarning =
+        language === 'bn'
+          ? `শেষ বাস ~${formatMinutes(parsed.close)} (${busName(seg.bus)})`
+          : `Last ${seg.bus.type === 'Metro' ? 'train' : 'bus'} ~${formatMinutes(parsed.close)} (${busName(seg.bus)})`;
+      break;
+    }
+  }
 
   const category = result.category;
   const badgeClass =
@@ -59,10 +75,23 @@ export default function JourneyCard({ result, delayMs = 0 }: Props) {
               </span>
             )}
           </div>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {result.totalStops} {t('results.stops')}
+          <span className="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <span className="inline-flex items-center gap-1">
+              <Clock size={11} />
+              ~{estimateMinutes(result)} {language === 'bn' ? 'মিনিট' : 'min'}
+            </span>
+            <span aria-label={language === 'bn' ? 'আনুমানিক ভাড়া' : 'estimated fare'}>৳{estimateFare(result)}</span>
+            <span>
+              {result.totalStops} {t('results.stops')}
+            </span>
           </span>
         </div>
+
+        {lastBusWarning && (
+          <p className="mb-2.5 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg px-2.5 py-1.5">
+            {lastBusWarning}
+          </p>
+        )}
 
         <div className="space-y-2.5">
           {result.segments.map((segment, idx) => {

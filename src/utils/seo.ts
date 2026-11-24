@@ -29,6 +29,18 @@ export function estimateMinutes(j: JourneyResult): number {
   return Math.round(ride + j.totalTransfers * 6);
 }
 
+/**
+ * Rough fare estimate (BDT). Local buses ~৳2.5/stop (min ৳10); metro follows
+ * the official ৳5/km distance bands (~৳6/station, ৳20 minimum, ৳100 max).
+ * Always labelled "est" in the UI — actual fares vary by service and traffic.
+ */
+export function estimateFare(j: JourneyResult): number {
+  return j.segments.reduce((a, s) => {
+    if (s.bus.type === 'Metro') return a + Math.min(100, Math.max(20, Math.round(s.stopCount * 6 / 5) * 5));
+    return a + Math.max(10, Math.round(s.stopCount * 2.5));
+  }, 0);
+}
+
 // ---------- Page meta builders (shared by SSR head + client hook) ----------
 
 export function homeMeta(data?: GraphData): PageMeta {
@@ -186,6 +198,14 @@ export function routeFaqPairs(from: Location, to: Location, results: JourneyResu
       a: `Our top recommendation is ${best.segments.map((s) => s.bus.nameEn).join(' + ')} (${best.totalStops} stops, ${best.totalTransfers} transfer${best.totalTransfers === 1 ? '' : 's'}). Results are ranked by stops, transfers and service rating.`,
     });
   }
+  pairs.push({
+    q: `${from.nameBn} থেকে ${to.nameBn} কোন বাসে যাওয়া যায়?`,
+    a: directs.length > 0
+      ? `${from.nameBn} থেকে ${to.nameBn} সরাসরি ${directs.length}টি বাস চলে, যেমন ${directs.slice(0, 4).map((r) => r.segments[0].bus.nameBn).join(', ')}। সম্পূর্ণ স্টপ তালিকা ও র‍্যাঙ্ক করা ফলাফল এই পেজে আছে।`
+      : best
+      ? `সরাসরি বাস নেই; সবচেয়ে ভালো উপায় ${best.segments.map((s) => s.bus.nameBn).join(', তারপর ')} — মোট ${best.totalStops} স্টপ।`
+      : `এই রুটে এখনো কোনো বাস তালিকাভুক্ত নেই। কাছের বড় স্টপ থেকে সার্চ করুন।`,
+  });
   return pairs;
 }
 

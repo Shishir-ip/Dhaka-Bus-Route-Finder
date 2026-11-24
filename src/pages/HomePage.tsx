@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { track } from '@vercel/analytics';
-import { ArrowRightLeft, Search, Bus, Repeat, Star, MapPin, TrainFront } from 'lucide-react';
+import { ArrowRightLeft, Search, Bus, Repeat, Star, MapPin, TrainFront, Clock, History } from 'lucide-react';
 import type { Location, JourneyResult } from '../types';
 import LocationAutocomplete from '../components/LocationAutocomplete';
 import JourneyCard from '../components/JourneyCard';
@@ -10,6 +10,20 @@ import { findRoutes, hasDirectBus } from '../utils/routeFinder';
 import { useSEO, homeMeta, HOME_FAQ } from '../utils/seo';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { isRunningNow } from '../utils/hours';
+import { nearestServedHub, formatDistance } from '../utils/geo';
+
+interface RecentSearch { f: string; t: string; fn: string; tn: string; fb: string; tb: string }
+
+function readRecent(): RecentSearch[] {
+  try {
+    const raw = localStorage.getItem('dbf-recent');
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function HomePage() {
   const [from, setFrom] = useState<Location | null>(null);
@@ -26,6 +40,13 @@ export default function HomePage() {
   const [mode, setMode] = useState<'all' | 'bus'>(() =>
     typeof window !== 'undefined' && localStorage.getItem('dbf-mode') === 'bus' ? 'bus' : 'all'
   );
+  // "Running now" hides services whose operating hours have ended for today.
+  const [runningNow, setRunningNow] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('dbf-running') === '1'
+  );
+  // Filter results by the transfer hub ("via Mirpur 10") — null = everything.
+  const [hubFilter, setHubFilter] = useState<string | null>(null);
+  const [recent, setRecent] = useState<RecentSearch[]>(() => (typeof window !== 'undefined' ? readRecent() : []));
   const { t, language } = useLanguage();
   const { buses, locations, loading: dataLoading, error, configError, getBusesForLocation, getLocationSlug, getLocationBySlug } = useData();
 
@@ -35,17 +56,23 @@ export default function HomePage() {
     localStorage.setItem('dbf-mode', mode);
   }, [mode]);
 
-  // "Bus only" hides the metro from recommendations entirely.
-  const searchBuses = useMemo(
-    () => (mode === 'bus' ? buses.filter((b) => b.type !== 'Metro') : buses),
-    [buses, mode]
-  );
+  useEffect(() => {
+    localStorage.setItem('dbf-running', runningNow ? '1' : '0');
+  }, [runningNow]);
+
+  // "Bus only" hides the metro; "Running now" also drops closed services.
+  const searchBuses = useMemo(() => {
+    let list = mode === 'bus' ? buses.filter((b) => b.type !== 'Metro') : buses;
+    if (runningNow) list = list.filter((b) => isRunningNow(b));
+    return list;
+  }, [buses, mode, runningNow]);
 
   const runSearch = (a: Location | null, b: Location | null) => {
     if (!a || !b) return;
     setSearched(true);
     setSearchId((n) => n + 1);
     setVisibleCount(30);
+    setHubFilter(null);
     if (a.id === b.id) {
       setResults([]);
       return;
@@ -57,6 +84,17 @@ export default function HomePage() {
         const found = findRoutes(a.id, b.id, searchBuses);
         setResults(found);
         track('search', { from: a.nameEn, to: b.nameEn, mode, results: found.length });
+        if (found.length > 0) {
+          const entry: RecentSearch = {
+            f: getLocationSlug(a), t: getLocationSlug(b),
+            fn: a.nameEn, tn: b.nameEn, fb: a.nameBn, tb: b.nameBn,
+          };
+          setRecent((prev) => {
+            const next = [entry, ...prev.filter((r) => !(r.f === entry.f && r.t === entry.t))].slice(0, 5);
+            try { localStorage.setItem('dbf-recent', JSON.stringify(next)); } catch { /* best-effort */ }
+            return next;
+          });
+        }
       } catch (err) {
         console.error('Search failed:', err);
         setResults([]);
@@ -100,10 +138,12 @@ export default function HomePage() {
     window.scrollTo({ top: Math.max(0, target), behavior: smooth ? 'smooth' : 'auto' });
   }, [searchId, loading]);
 
-  // Re-rank live when the user switches Bus + Metro / Bus only.
+  // Re-rank live when the user switches Bus + Metro / Bus only / Running now.
   useEffect(() => {
     if (searched && from && to && from.id !== to.id) {
       setResults(findRoutes(from.id, to.id, searchBuses));
+      setHubFilter(null);
+      setVisibleCount(30);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, searchBuses]);
@@ -146,6 +186,35 @@ export default function HomePage() {
   const sameLocation = searched && from && to && from.id === to.id;
   const notServed = searched && !sameLocation && results.length === 0 && from && to &&
     (getBusesForLocation(from.id).length === 0 || getBusesForLocation(to.id).length === 0);
+
+  // Transfer-hub chips: "via Mirpur 10 (17)" — group the long transfer list
+  // by where you change, so it reads like choices instead of a phone book.
+  const hubCounts = new Map<string, number>();
+  for (const j of results) {
+    if (j.totalTransfers === 0) continue;
+    const hub = j.segments[0].alightStop;
+    hubCounts.set(hub, (hubCounts.get(hub) || 0) + 1);
+  }
+  const hubChips = [...hubCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const filteredResults = hubFilter
+    ? results.filter((j) => j.totalTransfers > 0 && j.segments[0].alightStop === hubFilter)
+    : results;
+
+  // Nearest-hub rescue: when an endpoint has no service, suggest the closest
+  // stop that does (coordinates permitting) instead of a dead end.
+  const rescue = (() => {
+    if (!notServed || !from || !to) return null;
+    const unserved = getBusesForLocation(from.id).length === 0 ? from : to;
+    const other = unserved.id === from.id ? to : from;
+    const hub = nearestServedHub(unserved, locations, searchBuses, [other.id]);
+    if (!hub || hub.meters > 5000) return null;
+    return { unserved, other, hub };
+  })();
+
+  const stopLabel = (id: string) => {
+    const loc = locations.find((l) => l.id === id);
+    return loc ? (language === 'bn' ? loc.nameBn : loc.nameEn) : id;
+  };
 
   return (
     <div>
@@ -232,6 +301,19 @@ export default function HomePage() {
                 <Bus size={13} />
                 {t('search.modeBus')}
               </button>
+              <button
+                type="button"
+                onClick={() => { setRunningNow((v) => !v); track('running_toggle', { on: !runningNow }); }}
+                aria-pressed={runningNow}
+                className={`press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+                  runningNow
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <Clock size={13} />
+                {language === 'bn' ? 'এখন চলছে' : 'Running now'}
+              </button>
             </div>
           </form>
 
@@ -251,10 +333,32 @@ export default function HomePage() {
               </div>
             </div>
           )}
+          {recent.length > 0 && (
+            <div className="mt-4">
+              <p className="inline-flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 mb-2.5">
+                <History size={11} />
+                {language === 'bn' ? 'সাম্প্রতিক সার্চ' : 'Recent searches'}
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {recent.map((r, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      const a = getLocationBySlug(r.f);
+                      const b = getLocationBySlug(r.t);
+                      if (a && b) { setFrom(a); setTo(b); runSearch(a, b); }
+                    }}
+                    className="press px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800 rounded-full hover:border-emerald-300 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                  >
+                    {language === 'bn' ? `${r.fb} → ${r.tb}` : `${r.fn} → ${r.tn}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </section>
-
-      {/* Results */}
       {searched && (
         <section ref={resultsRef} className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
           {sameLocation ? (
@@ -267,7 +371,7 @@ export default function HomePage() {
                 <h2 className="font-semibold text-gray-900 dark:text-white">{t('results.title')}</h2>
                 {!loading && (
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {results.length} {t('results.found')}
+                    {hubFilter ? `${filteredResults.length} / ${results.length}` : results.length} {t('results.found')}
                   </span>
                 )}
               </div>
@@ -284,21 +388,75 @@ export default function HomePage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                     {notServed ? t('search.notServed') : t('results.noResultsHint')}
                   </p>
+                  {rescue && (
+                    <div className="mt-5 mx-auto max-w-sm border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl p-4 text-left">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                        <MapPin size={13} className="inline mr-1 text-emerald-600 dark:text-emerald-400" />
+                        {language === 'bn'
+                          ? `${rescue.unserved.nameBn}-এ বাস নেই। সবচেয়ে কাছের স্টপ ${rescue.hub.location.nameBn} (~${formatDistance(rescue.hub.meters)}) — সেখান থেকে ${rescue.hub.busCount}টি বাস চলে।`
+                          : `No buses at ${rescue.unserved.nameEn}. Nearest stop: ${rescue.hub.location.nameEn} (~${formatDistance(rescue.hub.meters)}) with ${rescue.hub.busCount} buses.`}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const a = rescue.unserved.id === from?.id ? rescue.hub.location : from;
+                          const b = rescue.unserved.id === from?.id ? to : rescue.hub.location;
+                          setFrom(a);
+                          setTo(b);
+                          runSearch(a, b);
+                        }}
+                        className="press w-full text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg py-2 transition-colors"
+                      >
+                        {language === 'bn'
+                          ? `${rescue.hub.location.nameBn} থেকে সার্চ করুন`
+                          : `Search from ${rescue.hub.location.nameEn} instead`}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {results.slice(0, visibleCount).map((result, idx) => (
+                  {hubChips.length > 1 && (
+                    <div className="flex flex-wrap gap-1.5 pb-1">
+                      <button
+                        type="button"
+                        onClick={() => { setHubFilter(null); setVisibleCount(30); }}
+                        className={`press px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          hubFilter === null
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        {language === 'bn' ? `সব (${results.length})` : `All (${results.length})`}
+                      </button>
+                      {hubChips.map(([hub, count]) => (
+                        <button
+                          key={hub}
+                          type="button"
+                          onClick={() => { setHubFilter(hubFilter === hub ? null : hub); setVisibleCount(30); }}
+                          className={`press px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                            hubFilter === hub
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          }`}
+                        >
+                          {language === 'bn' ? `${stopLabel(hub)} হয়ে (${count})` : `via ${stopLabel(hub)} (${count})`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {filteredResults.slice(0, visibleCount).map((result, idx) => (
                     <JourneyCard key={idx} result={result} delayMs={Math.min(idx, 8) * 70} />
                   ))}
-                  {results.length > visibleCount && (
+                  {filteredResults.length > visibleCount && (
                     <button
                       type="button"
                       onClick={() => setVisibleCount((c) => c + 60)}
                       className="press w-full text-sm font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-xl py-3 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 transition-colors"
                     >
                       {language === 'bn'
-                        ? `আরও দেখুন — ${results.length - visibleCount}টি অপশন বাকি (মোট ${results.length})`
-                        : `Show more — ${results.length - visibleCount} more options (${results.length} total)`}
+                        ? `আরও দেখুন — ${filteredResults.length - visibleCount}টি অপশন বাকি (মোট ${filteredResults.length})`
+                        : `Show more — ${filteredResults.length - visibleCount} more options (${filteredResults.length} total)`}
                     </button>
                   )}
                 </div>

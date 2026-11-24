@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Bus as BusIcon, Clock, Tag, ArrowLeft, ArrowRight, Wrench, Flag } from 'lucide-react';
+import { Bus as BusIcon, Clock, Tag, ArrowLeft, ArrowRight, Wrench, Flag, Map as MapIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { StarDisplay } from '../components/StarRating';
@@ -8,11 +8,14 @@ import RouteTimeline from '../components/RouteTimeline';
 import ConnectionError from '../components/ConnectionError';
 import { useSEO, busMeta } from '../utils/seo';
 
+const RouteMap = lazy(() => import('../components/RouteMap'));
+
 export default function BusDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { language, t } = useLanguage();
   const { buses, locations, getBusBySlug, getLocationById, getLocationSlug, loading, error, configError } = useData();
   const bus = slug ? getBusBySlug(slug) : undefined;
+  const [showMap, setShowMap] = useState(false);
 
   const meta = useMemo(
     () => (bus ? busMeta(bus, { buses, locations }) : { title: 'Bus not found — Dhaka Bus Finder', description: '', noindex: true }),
@@ -171,11 +174,52 @@ export default function BusDetailPage() {
         );
       })}
 
+      {(() => {
+        const mapStops = (firstRoute?.stops || [])
+          .map((s) => getLocationById(s.locationId))
+          .filter((l): l is NonNullable<typeof l> => Boolean(l && l.lat != null && l.lng != null))
+          .map((l) => ({ name: language === 'bn' ? l.nameBn : l.nameEn, lat: l.lat!, lng: l.lng! }));
+        if (mapStops.length < 2) return null;
+        return (
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              className="press inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 rounded-lg px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 transition-colors"
+            >
+              <MapIcon size={13} />
+              {showMap
+                ? language === 'bn' ? 'ম্যাপ লুকান' : 'Hide map'
+                : language === 'bn' ? 'রুট ম্যাপ দেখুন' : 'Show route map'}
+            </button>
+            {showMap && (
+              <div className="mt-3">
+                <Suspense fallback={<div className="skeleton h-72 rounded-xl" />}>
+                  <RouteMap stops={mapStops} />
+                </Suspense>
+                <p className="text-[10px] text-gray-400 mt-1.5">
+                  {language === 'bn' ? 'আনুমানিক অবস্থান — শুধু প্রধান স্টপগুলো দেখানো হয়েছে।' : 'Approximate positions — major stops only.'}
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {bus.notes && (
         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl p-4">
           <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">{t('bus.notes')}</h3>
           <p className="text-sm text-amber-700 dark:text-amber-300 whitespace-pre-wrap">{bus.notes}</p>
         </div>
+      )}
+
+      {/* Bangla summary — real content for Bangla search queries */}
+      {journeyFrom && journeyTo && (
+        <p lang="bn" className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed mt-6">
+          {bus.nameBn} বাসটি {journeyFrom.nameBn} থেকে {journeyTo.nameBn} পর্যন্ত চলাচল করে
+          {firstRoute ? ` — এই রুটে ${firstRoute.stops.length}টি স্টপ আছে` : ''}।
+          {bus.operatingHours ? ` চলাচলের সময়: ${bus.operatingHours}।` : ''} ঢাকা শহরের এই বাসের সম্পূর্ণ রুট, স্টপ তালিকা ও ভাড়ার তথ্য উপরে দেখুন।
+        </p>
       )}
     </div>
   );

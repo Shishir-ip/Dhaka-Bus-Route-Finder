@@ -1,0 +1,17 @@
+{
+  "name": "Dhaka Bus Finder — Bus & Metro Route Finder",
+  "short_name": "Dhaka Bus",
+  "description": "Find every Dhaka bus route, MRT Line 6 metro and smart transfer journeys — in English or Bangla.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f1115",
+  "theme_color": "#006747",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

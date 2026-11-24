@@ -4,6 +4,8 @@ export interface Location {
   nameBn: string;
   aliases: string[];
   googleMapsUrl?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface BusRoute {

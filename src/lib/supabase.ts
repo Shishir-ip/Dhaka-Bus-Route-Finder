@@ -37,6 +37,8 @@ export interface DBLocation {
   name_bn: string | null;
   aliases: string[] | null;
   google_maps_url: string | null;
+  lat: number | null;
+  lng: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -221,6 +223,8 @@ function sanitizeLocation(input: Partial<DBLocation>): Record<string, unknown> {
   if (input.name_bn !== undefined) out.name_bn = input.name_bn?.trim() || null;
   if (input.aliases !== undefined) out.aliases = (input.aliases || []).map((a) => a.trim()).filter(Boolean);
   if (input.google_maps_url !== undefined) out.google_maps_url = input.google_maps_url?.trim() || null;
+  if (input.lat !== undefined) out.lat = input.lat != null && Number.isFinite(Number(input.lat)) ? Number(input.lat) : null;
+  if (input.lng !== undefined) out.lng = input.lng != null && Number.isFinite(Number(input.lng)) ? Number(input.lng) : null;
   if (input.is_active !== undefined) out.is_active = Boolean(input.is_active);
   return out;
 }
@@ -318,6 +322,42 @@ export async function updateRouteStopOrder(stops: { id: string; order: number }[
   );
   const failed = results.find((r) => r.error);
   if (failed?.error) throw dbError(failed.error, 'Failed to reorder stops');
+}
+
+// ---------- App settings (admin-only table) ----------
+export async function getAppSetting(key: string): Promise<string | null> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase is not configured');
+  const { data, error } = await client.from('app_settings').select('value').eq('key', key).maybeSingle();
+  if (error) throw dbError(error, 'Failed to read setting');
+  return data?.value ?? null;
+}
+
+export async function setAppSetting(key: string, value: string): Promise<void> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase is not configured');
+  const { error } = await client.from('app_settings').upsert({ key, value });
+  if (error) throw dbError(error, 'Failed to save setting');
+}
+
+/**
+ * Fire the Vercel deploy hook (if the admin saved one) so pre-rendered SEO
+ * pages rebuild automatically after data edits. Returns true when triggered.
+ */
+export async function triggerSeoRebuild(): Promise<boolean> {
+  let hook: string | null = null;
+  try {
+    hook = await getAppSetting('vercel_deploy_hook');
+  } catch {
+    return false; // table missing (04 SQL not run yet) — stay silent
+  }
+  if (!hook || !/^https:\/\/api\.vercel\.com\//.test(hook)) return false;
+  try {
+    await fetch(hook, { method: 'POST', mode: 'no-cors' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ---------- Feedback ----------
